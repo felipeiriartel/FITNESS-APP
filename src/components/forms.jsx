@@ -6,6 +6,7 @@ import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
 import { ErrorBox, Modal, useToast } from './ui.jsx';
 import { tipoPorHora } from './MealForm.jsx';
+import { useFotos } from '../lib/useFotos.js';
 
 const num = (v) => parseFloat(String(v).replace(',', '.'));
 
@@ -16,6 +17,7 @@ export function FavoritesPicker({ fecha, onClose }) {
   const [tipo, setTipo] = useState(tipoPorHora());
   const [error, setError] = useState(null);
   const [ocupado, setOcupado] = useState(false);
+  const fotos = useFotos(favorites.map((f) => f.photo_path));
 
   async function agregar(f, porciones = 1) {
     setOcupado(true);
@@ -53,6 +55,9 @@ export function FavoritesPicker({ fecha, onClose }) {
         <div className="list">
           {favorites.map((f) => (
             <div className="list-item" key={f.id}>
+              {f.photo_path && fotos[f.photo_path]
+                ? <img className="thumb" src={fotos[f.photo_path]} alt="" />
+                : <div className="thumb" aria-hidden="true">{TIPOS_COMIDA.find((t) => t.id === f.meal_type)?.emoji ?? '⭐'}</div>}
               <div className="grow">
                 <div className="item-title">{f.name}</div>
                 <small className="num">{fmt(f.kcal)} kcal, {fmt(f.protein_g)} g de proteína</small>

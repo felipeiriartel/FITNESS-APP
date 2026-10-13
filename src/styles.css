@@ -465,3 +465,28 @@ details summary { cursor: pointer; color: var(--palta); font-weight: 650; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* ---------- Escáner de código de barras ---------- */
+.scanner { position: relative; border-radius: 22px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
+.scanner video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scanner-frame {
+  position: absolute; left: 12%; right: 12%; top: 30%; bottom: 30%;
+  border: 3px solid var(--choclo); border-radius: 14px;
+  box-shadow: 0 0 0 999px rgb(0 0 0 / 0.35);
+  animation: scan-pulse 1.6s ease-in-out infinite;
+}
+.scanner-hint { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; color: #fff; font-weight: 650; text-shadow: 0 1px 3px rgb(0 0 0 / 0.6); margin: 0; }
+@keyframes scan-pulse { 50% { border-color: #fff; } }
+
+/* ---------- Sugerencias ---------- */
+.remaining { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.remaining div { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px; }
+.remaining b { display: block; font-family: var(--font-display); font-size: 1.5rem; }
+.suggestion { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 16px; display: flex; flex-direction: column; gap: 10px; animation: page-in 0.3s var(--ease-out) backwards; }
+.suggestion:nth-child(2) { animation-delay: 0.06s; }
+.suggestion:nth-child(3) { animation-delay: 0.12s; }
+.suggestion ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 0.93rem; }
+
+.quick-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.quick-row .btn { flex-direction: column; gap: 4px; min-height: 76px; padding: 10px 6px; font-size: 0.95rem; }
+.quick-row .btn .emoji { font-size: 1.5rem; }

@@ -45,7 +45,10 @@ export default function Settings({ email }) {
 
   async function borrarFavorita(f) {
     if (!confirm(`¿Eliminar "${f.name}" de las comidas frecuentes?`)) return;
-    await supabase.from('favorite_meals').delete().eq('id', f.id);
+    const { error: e } = await supabase.from('favorite_meals').delete().eq('id', f.id);
+    if (e) return toast(e.message, 'error');
+    if (f.photo_path) await supabase.storage.from('meal-photos').remove([f.photo_path]);
+    toast('Comida frecuente eliminada');
     reload();
   }
 

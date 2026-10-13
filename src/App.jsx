@@ -9,6 +9,8 @@ import Progress from './pages/Progress.jsx';
 import Settings from './pages/Settings.jsx';
 import MealForm from './components/MealForm.jsx';
 import QuickActions from './components/QuickActions.jsx';
+import BarcodeScanner from './components/BarcodeScanner.jsx';
+import Suggestions from './components/Suggestions.jsx';
 import { ExerciseForm, FavoritesPicker, ProfileForm, WeightForm } from './components/forms.jsx';
 import { ErrorBox, Icon, ToastProvider } from './components/ui.jsx';
 
@@ -74,7 +76,8 @@ function Shell({ email }) {
   const { loading, error, profile, weights, metas } = useData();
   const [tab, setTab] = useState('hoy');
   const [fecha, setFecha] = useState(todayISO());
-  const [accion, setAccion] = useState(null); // menu | comida | favoritas | ejercicio | peso
+  // { id: menu | comida | texto | codigo | sugerir | favoritas | ejercicio | peso, datos }
+  const [accion, setAccion] = useState(null);
 
   if (loading) return <Cargando texto="Cargando sus datos…" />;
   if (error && !profile) {
@@ -114,14 +117,16 @@ function Shell({ email }) {
   // Se registra en el día que se está viendo en "Hoy"; desde otras pestañas, en el día de hoy.
   const fechaRegistro = tab === 'hoy' ? fecha : todayISO();
   const cerrar = () => setAccion(null);
+  const abrir = (id, datos) => setAccion({ id, datos });
+  const a = accion?.id;
 
   return (
     <>
       <main className="app">
         <div className="page" key={tab}>
-          {tab === 'hoy' && <Today fecha={fecha} setFecha={setFecha} abrir={setAccion} />}
+          {tab === 'hoy' && <Today fecha={fecha} setFecha={setFecha} abrir={abrir} />}
           {tab === 'calendario' && <CalendarPage abrirDia={abrirDia} />}
-          {tab === 'progreso' && <Progress abrir={setAccion} />}
+          {tab === 'progreso' && <Progress abrir={abrir} />}
           {tab === 'ajustes' && <Settings email={email} />}
         </div>
       </main>
@@ -130,7 +135,7 @@ function Shell({ email }) {
         <div className="tabbar-inner">
           {TABS.slice(0, 2).map((t) => <Tab key={t.id} t={t} on={tab === t.id} onClick={() => irA(t.id)} />)}
           <div className="fab-wrap">
-            <button className="fab" aria-label="Registrar" aria-expanded={accion === 'menu'} onClick={() => setAccion('menu')}>
+            <button className="fab" aria-label="Registrar" aria-expanded={a === 'menu'} onClick={() => abrir('menu')}>
               <Icon name="mas" stroke={3} />
             </button>
           </div>
@@ -138,11 +143,14 @@ function Shell({ email }) {
         </div>
       </nav>
 
-      {accion === 'menu' && <QuickActions fecha={fechaRegistro} onClose={cerrar} abrir={setAccion} />}
-      {accion === 'comida' && <MealForm fecha={fechaRegistro} onClose={cerrar} />}
-      {accion === 'favoritas' && <FavoritesPicker fecha={fechaRegistro} onClose={cerrar} />}
-      {accion === 'ejercicio' && <ExerciseForm fecha={fechaRegistro} onClose={cerrar} />}
-      {accion === 'peso' && <WeightForm fecha={fechaRegistro} onClose={cerrar} />}
+      {a === 'menu' && <QuickActions fecha={fechaRegistro} onClose={cerrar} abrir={abrir} />}
+      {a === 'comida' && <MealForm key="foto" fecha={fechaRegistro} onClose={cerrar} inicial={accion.datos?.inicial} />}
+      {a === 'texto' && <MealForm key="texto" modo="texto" fecha={fechaRegistro} onClose={cerrar} />}
+      {a === 'codigo' && <BarcodeScanner fecha={fechaRegistro} onClose={cerrar} abrir={abrir} />}
+      {a === 'sugerir' && <Suggestions fecha={fechaRegistro} onClose={cerrar} abrir={abrir} />}
+      {a === 'favoritas' && <FavoritesPicker fecha={fechaRegistro} onClose={cerrar} />}
+      {a === 'ejercicio' && <ExerciseForm fecha={fechaRegistro} onClose={cerrar} />}
+      {a === 'peso' && <WeightForm fecha={fechaRegistro} onClose={cerrar} />}
     </>
   );
 }

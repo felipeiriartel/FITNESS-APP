@@ -100,7 +100,7 @@ export async function importarJSON(userId, file) {
   const resumen = {};
   for (const t of TABLAS) {
     let filas = limpiar(data[t]);
-    if (t === 'meals') filas = filas.map((f) => ({ ...f, photo_path: null }));
+    if (t === 'meals' || t === 'favorite_meals') filas = filas.map((f) => ({ ...f, photo_path: null }));
     if (!filas.length) continue;
     for (let i = 0; i < filas.length; i += 500) {
       const lote = filas.slice(i, i + 500);

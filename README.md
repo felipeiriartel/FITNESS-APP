@@ -6,6 +6,10 @@ Es multiusuario: cualquier persona puede crear su cuenta y cada una ve solo sus 
 ## Funciones
 
 - **Registro con foto + IA**: tome una foto del plato, agregue datos (porción, preparación, marca) y la IA estima calorías, proteína, carbohidratos y grasas por alimento. Si tiene dudas, hace hasta 3 preguntas y recalcula con sus respuestas. Todo es editable antes de guardar.
+- **Registro por texto**: escriba lo que comió ("2 huevos y una marraqueta") y la IA lo calcula, sin necesidad de foto.
+- **Código de barras**: escanee el envase con la cámara (o desde una foto, o escribiendo el código). Los datos vienen de [Open Food Facts](https://world.openfoodfacts.org); si el producto no está, se ofrece fotografiar la etiqueta.
+- **¿Qué puedo comer?**: la IA propone 3 comidas caseras que calzan con las calorías y la proteína que le quedan en el día.
+- **Fotos privadas y efímeras**: la foto solo se usa para el análisis y no se guarda, salvo que la comida se guarde como frecuente.
 - **Comidas frecuentes**: guarde lo que come seguido y regístrelo con un toque (o media porción).
 - **Agua**: botones de +250 ml, +500 ml y +1 L, con meta diaria (35 ml por kg).
 - **Ejercicio**: tipo, duración, intensidad y detalle; el gasto se estima con valores MET y se cuenta al 75%.
@@ -44,7 +48,7 @@ src/components/                         Formularios, gráfico y componentes de i
 ### 1. Supabase
 
 1. Cree un proyecto en [supabase.com](https://supabase.com).
-2. En **SQL Editor**, pegue y ejecute el contenido de `supabase/migrations/001_init.sql`.
+2. En **SQL Editor**, pegue y ejecute en orden los archivos de `supabase/migrations/` (`001_init.sql` y luego `002_fotos_frecuentes.sql`).
 3. En **Authentication → Providers**, deje activo **Email**. Si no quiere confirmar correos al registrarse, desactive *Confirm email*.
 4. En **Authentication → URL Configuration**, ponga en *Site URL* la dirección que le dé Netlify (por ejemplo `https://comidia-xxx.netlify.app`).
 

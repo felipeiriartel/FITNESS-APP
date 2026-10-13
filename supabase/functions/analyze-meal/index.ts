@@ -1,9 +1,12 @@
-// Comidia · Función de análisis nutricional con IA
-// Recibe una foto (base64) y/o una descripción, y devuelve calorías y macros estimados.
+// Comidia · Función de IA
+// Modos:
+//   "analizar" (por defecto): foto (base64) y/o descripción → calorías y macros estimados.
+//   "sugerir": lo que le queda del día → 3 ideas de comida que calcen.
 // Proveedor configurable con secretos de Supabase:
 //   AI_PROVIDER = anthropic | openai | gemini   (por defecto: anthropic)
 //   AI_API_KEY  = clave del proveedor
 //   AI_MODEL    = modelo (opcional; ver valores por defecto abajo)
+// Cada llamada deja en los registros el uso de tokens, para controlar el costo.
 
 const DEFAULT_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-5-5",
@@ -17,7 +20,7 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const SYSTEM = `Eres un nutricionista experto en estimar el contenido nutricional de comidas a partir de fotos y descripciones. Conoces bien la comida chilena y latinoamericana (porotos, pastel de choclo, completos, sopaipillas, marraqueta, cazuela, empanadas, etc.), además de productos envasados comunes en Chile.
+const SYSTEM_ANALIZAR = `Eres un nutricionista experto en estimar el contenido nutricional de comidas a partir de fotos y descripciones. Conoces bien la comida chilena y latinoamericana (porotos, pastel de choclo, completos, sopaipillas, marraqueta, cazuela, empanadas, etc.), además de productos envasados comunes en Chile.
 
 Reglas:
 1. Identifica cada componente visible o mencionado y estima su cantidad en gramos o mililitros. Usa como referencia el tamaño del plato (aprox. 26 cm), cubiertos, manos, vasos o envases.
@@ -31,13 +34,30 @@ Reglas:
 9. Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional ni bloques de código, con esta forma exacta:
 {"plato":"nombre corto","items":[{"nombre":"","cantidad":"ej: 150 g","gramos":150,"kcal":0,"proteina_g":0,"carbohidratos_g":0,"grasas_g":0}],"confianza":0.8,"supuestos":[""],"preguntas":[""]}`;
 
+const SYSTEM_SUGERIR = `Eres un nutricionista chileno que propone comidas caseras, simples y realistas para alguien que cuenta calorías y quiere cuidar su masa muscular.
+
+Reglas:
+1. Propón exactamente 3 opciones distintas para el tipo de comida indicado, que quepan en lo que le queda del día. Cada opción debe usar entre el 60% y el 100% de las kcal disponibles para esa comida (si quedan más de 900 kcal, apunta a 450-800 kcal por opción).
+2. Prioriza la proteína si le falta proteína en el día.
+3. Usa ingredientes fáciles de encontrar en Chile (supermercado o feria) y preparaciones de menos de 20 minutos, salvo que la persona pida otra cosa.
+4. Si quedan menos de 150 kcal, propone opciones muy livianas (infusiones, verduras, yogur sin azúcar) y recuerda en "descripcion" que no es necesario comer si no tiene hambre.
+5. Nunca propongas saltarse comidas ni dietas extremas.
+6. Ingredientes con cantidades concretas (gramos, unidades, tazas).
+7. Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, con esta forma exacta:
+{"sugerencias":[{"nombre":"","descripcion":"una frase","ingredientes":["150 g de pechuga de pollo"],"kcal":0,"proteina_g":0,"carbohidratos_g":0,"grasas_g":0}]}`;
+
+type Restante = { kcal?: number; proteina_g?: number; carbohidratos_g?: number; grasas_g?: number };
 type Body = {
+  mode?: "analizar" | "sugerir";
   image_base64?: string;
   media_type?: string;
   description?: string;
   meal_type?: string;
   answers?: string;
+  restante?: Restante;
+  preferencias?: string;
 };
+type Uso = { entrada: number; salida: number };
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -56,7 +76,7 @@ async function readJson(r: Response) {
   }
 }
 
-function buildUserText(b: Body): string {
+function textoAnalizar(b: Body): string {
   const parts: string[] = [];
   if (b.meal_type) parts.push(`Tipo de comida: ${b.meal_type}.`);
   if (b.description?.trim()) parts.push(`Información de la persona: ${b.description.trim()}`);
@@ -66,7 +86,18 @@ function buildUserText(b: Body): string {
   return parts.join("\n");
 }
 
-async function callAnthropic(key: string, model: string, b: Body, text: string) {
+function textoSugerir(b: Body): string {
+  const r = b.restante ?? {};
+  const v = (n?: number) => Math.max(0, Math.round(Number(n) || 0));
+  return [
+    `Tipo de comida: ${b.meal_type ?? "cualquiera"}.`,
+    `Le quedan hoy: ${v(r.kcal)} kcal, ${v(r.proteina_g)} g de proteína, ${v(r.carbohidratos_g)} g de carbohidratos y ${v(r.grasas_g)} g de grasas.`,
+    b.preferencias?.trim() ? `Lo que tiene, quiere o no quiere: ${b.preferencias.trim().slice(0, 300)}` : "",
+    "Propón 3 opciones. Responde solo con el JSON.",
+  ].filter(Boolean).join("\n");
+}
+
+async function callAnthropic(key: string, model: string, system: string, b: Body, text: string) {
   const content: unknown[] = [];
   if (b.image_base64) {
     content.push({
@@ -82,22 +113,19 @@ async function callAnthropic(key: string, model: string, b: Body, text: string) 
       "anthropic-version": "2023-06-01",
       "content-type": "application/json",
     },
-    body: JSON.stringify({
-      model,
-      max_tokens: 2000,
-      system: SYSTEM,
-      messages: [{ role: "user", content }],
-    }),
+    body: JSON.stringify({ model, max_tokens: 2000, system, messages: [{ role: "user", content }] }),
   });
   const data = await readJson(r);
   if (!r.ok) throw new Error(data?.error?.message ?? `Error del proveedor (${r.status})`);
-  return (data.content ?? [])
+  const raw = (data.content ?? [])
     .filter((c: { type: string }) => c.type === "text")
     .map((c: { text: string }) => c.text)
     .join("");
+  const uso: Uso = { entrada: data.usage?.input_tokens ?? 0, salida: data.usage?.output_tokens ?? 0 };
+  return { raw, uso };
 }
 
-async function callOpenAI(key: string, model: string, b: Body, text: string) {
+async function callOpenAI(key: string, model: string, system: string, b: Body, text: string) {
   const content: unknown[] = [{ type: "text", text }];
   if (b.image_base64) {
     content.push({
@@ -112,17 +140,18 @@ async function callOpenAI(key: string, model: string, b: Body, text: string) {
       model,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: SYSTEM },
+        { role: "system", content: system },
         { role: "user", content },
       ],
     }),
   });
   const data = await readJson(r);
   if (!r.ok) throw new Error(data?.error?.message ?? `Error del proveedor (${r.status})`);
-  return data.choices?.[0]?.message?.content ?? "";
+  const uso: Uso = { entrada: data.usage?.prompt_tokens ?? 0, salida: data.usage?.completion_tokens ?? 0 };
+  return { raw: data.choices?.[0]?.message?.content ?? "", uso };
 }
 
-async function callGemini(key: string, model: string, b: Body, text: string) {
+async function callGemini(key: string, model: string, system: string, b: Body, text: string) {
   const parts: unknown[] = [];
   if (b.image_base64) {
     parts.push({ inline_data: { mime_type: b.media_type ?? "image/jpeg", data: b.image_base64 } });
@@ -134,7 +163,7 @@ async function callGemini(key: string, model: string, b: Body, text: string) {
       method: "POST",
       headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
+        systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: "user", parts }],
         generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
       }),
@@ -142,9 +171,14 @@ async function callGemini(key: string, model: string, b: Body, text: string) {
   );
   const data = await readJson(r);
   if (!r.ok) throw new Error(data?.error?.message ?? `Error del proveedor (${r.status})`);
-  return (data.candidates?.[0]?.content?.parts ?? [])
+  const raw = (data.candidates?.[0]?.content?.parts ?? [])
     .map((p: { text?: string }) => p.text ?? "")
     .join("");
+  const uso: Uso = {
+    entrada: data.usageMetadata?.promptTokenCount ?? 0,
+    salida: data.usageMetadata?.candidatesTokenCount ?? 0,
+  };
+  return { raw, uso };
 }
 
 function extractJson(raw: string): Record<string, unknown> {
@@ -165,8 +199,10 @@ const num = (v: unknown, d = 0) => {
   return Number.isFinite(n) && n >= 0 ? n : d;
 };
 const r1 = (n: number) => Math.round(n * 10) / 10;
+const strList = (v: unknown, max = 5) =>
+  (Array.isArray(v) ? v : []).map(String).filter((s) => s.trim().length > 0).slice(0, max);
 
-function normalize(p: Record<string, unknown>) {
+function normalizarAnalisis(p: Record<string, unknown>) {
   const items = (Array.isArray(p.items) ? p.items : []).map((it: Record<string, unknown>) => ({
     nombre: String(it.nombre ?? "Alimento"),
     cantidad: String(it.cantidad ?? ""),
@@ -185,16 +221,27 @@ function normalize(p: Record<string, unknown>) {
     }),
     { kcal: 0, proteina_g: 0, carbohidratos_g: 0, grasas_g: 0 },
   );
-  const strList = (v: unknown) =>
-    (Array.isArray(v) ? v : []).map(String).filter((s) => s.trim().length > 0).slice(0, 5);
   return {
     plato: String(p.plato ?? items[0]?.nombre ?? "Comida"),
     items,
     total,
     confianza: Math.min(1, num(p.confianza, 0.5)),
     supuestos: strList(p.supuestos),
-    preguntas: strList(p.preguntas).slice(0, 3),
+    preguntas: strList(p.preguntas, 3),
   };
+}
+
+function normalizarSugerencias(p: Record<string, unknown>) {
+  const lista = (Array.isArray(p.sugerencias) ? p.sugerencias : []).slice(0, 3).map((s: Record<string, unknown>) => ({
+    nombre: String(s.nombre ?? "Opción"),
+    descripcion: String(s.descripcion ?? ""),
+    ingredientes: strList(s.ingredientes, 8),
+    kcal: Math.round(num(s.kcal)),
+    proteina_g: r1(num(s.proteina_g)),
+    carbohidratos_g: r1(num(s.carbohidratos_g)),
+    grasas_g: r1(num(s.grasas_g)),
+  }));
+  return { sugerencias: lista };
 }
 
 Deno.serve(async (req) => {
@@ -209,9 +256,11 @@ Deno.serve(async (req) => {
       console.error("Cuerpo de la solicitud inválido:", String(e));
       return json({ error: "La solicitud no es un JSON válido. Revise comillas y llaves del texto enviado." }, 400);
     }
-    if (!body.image_base64 && !body.description?.trim()) {
+    const modo = body.mode === "sugerir" ? "sugerir" : "analizar";
+    if (modo === "analizar" && !body.image_base64 && !body.description?.trim()) {
       return json({ error: "Envíe una foto o una descripción del alimento." }, 400);
     }
+    if (modo === "sugerir") delete body.image_base64;
     if (body.image_base64 && body.image_base64.length > 8_000_000) {
       return json({ error: "La imagen es demasiado grande." }, 413);
     }
@@ -222,14 +271,21 @@ Deno.serve(async (req) => {
     const model = Deno.env.get("AI_MODEL") || DEFAULT_MODELS[provider];
     if (!model) return json({ error: `Proveedor no soportado: ${provider}` }, 500);
 
-    const text = buildUserText(body);
-    let raw: string;
-    if (provider === "anthropic") raw = await callAnthropic(key, model, body, text);
-    else if (provider === "openai") raw = await callOpenAI(key, model, body, text);
-    else if (provider === "gemini") raw = await callGemini(key, model, body, text);
+    const system = modo === "sugerir" ? SYSTEM_SUGERIR : SYSTEM_ANALIZAR;
+    const text = modo === "sugerir" ? textoSugerir(body) : textoAnalizar(body);
+    let res: { raw: string; uso: Uso };
+    if (provider === "anthropic") res = await callAnthropic(key, model, system, body, text);
+    else if (provider === "openai") res = await callOpenAI(key, model, system, body, text);
+    else if (provider === "gemini") res = await callGemini(key, model, system, body, text);
     else return json({ error: `Proveedor no soportado: ${provider}` }, 500);
 
-    return json(normalize(extractJson(raw)));
+    console.log(JSON.stringify({
+      evento: "uso_ia", modo, proveedor: provider, modelo: model, foto: Boolean(body.image_base64),
+      tokens_entrada: res.uso.entrada, tokens_salida: res.uso.salida,
+    }));
+
+    const parsed = extractJson(res.raw);
+    return json(modo === "sugerir" ? normalizarSugerencias(parsed) : normalizarAnalisis(parsed));
   } catch (e) {
     console.error("Error en analyze-meal:", e instanceof Error ? e.message : String(e));
     return json({ error: e instanceof Error ? e.message : "Error inesperado." }, 500);

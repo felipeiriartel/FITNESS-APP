@@ -6,23 +6,20 @@ import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
 import { Bar, Icon, Macro, Pill, Ring, useToast } from '../components/ui.jsx';
 import WaterInput from '../components/WaterInput.jsx';
+import { useFotos } from '../lib/useFotos.js';
 
 export default function Today({ fecha, setFecha, abrir }) {
   const { metas, ctx, exercises, water, weights, userId, reload } = useData();
   const toast = useToast();
   const [meals, setMeals] = useState([]);
-  const [fotos, setFotos] = useState({});
   const hoy = todayISO();
 
   const cargar = useCallback(async () => {
     const { data } = await supabase.from('meals').select('*').eq('log_date', fecha).order('created_at');
     setMeals(data ?? []);
-    const paths = (data ?? []).map((m) => m.photo_path).filter(Boolean);
-    if (paths.length) {
-      const { data: urls } = await supabase.storage.from('meal-photos').createSignedUrls(paths, 3600);
-      setFotos(Object.fromEntries((urls ?? []).filter((u) => u.signedUrl).map((u) => [u.path, u.signedUrl])));
-    } else setFotos({});
   }, [fecha]);
+  // Solo los registros antiguos pueden tener foto; las nuevas no se guardan.
+  const fotos = useFotos(meals.map((m) => m.photo_path));
 
   useEffect(() => {
     cargar();
@@ -110,8 +107,13 @@ export default function Today({ fecha, setFecha, abrir }) {
       <button className="btn primary big block" onClick={() => abrir('comida')}>
         <span className="emoji">📷</span> Registrar comida con foto
       </button>
-      <button className="btn block" onClick={() => abrir('favoritas')}>
-        <span className="emoji">⭐</span> Elegir una comida frecuente
+      <div className="quick-row">
+        <button className="btn" onClick={() => abrir('texto')}><span className="emoji" aria-hidden="true">✍️</span>Escribir</button>
+        <button className="btn" onClick={() => abrir('codigo')}><span className="emoji" aria-hidden="true">🔲</span>Código</button>
+        <button className="btn" onClick={() => abrir('favoritas')}><span className="emoji" aria-hidden="true">⭐</span>Frecuente</button>
+      </div>
+      <button className="btn block" onClick={() => abrir('sugerir')}>
+        <span className="emoji" aria-hidden="true">💡</span> ¿Qué puedo comer ahora?
       </button>
 
       <section className="card">

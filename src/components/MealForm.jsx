@@ -20,16 +20,24 @@ const n = (v) => {
   return Number.isFinite(x) && x >= 0 ? x : 0;
 };
 
-export default function MealForm({ fecha, onClose }) {
+/**
+ * Registro de una comida.
+ * modo: 'foto' (por defecto) o 'texto' (escribir lo que comió).
+ * inicial: valores precargados (desde el escáner o una sugerencia).
+ * La foto solo se usa para el análisis; se guarda únicamente si la comida
+ * se guarda como frecuente.
+ */
+export default function MealForm({ fecha, onClose, modo = 'foto', inicial }) {
   const { userId, reload } = useData();
   const toast = useToast();
-  const [tipo, setTipo] = useState(tipoPorHora());
+  const [tipo, setTipo] = useState(inicial?.tipo ?? tipoPorHora());
+  const [conFoto, setConFoto] = useState(modo !== 'texto');
   const [foto, setFoto] = useState(null); // { blob, base64, preview }
   const [descripcion, setDescripcion] = useState('');
   const [respuestas, setRespuestas] = useState('');
   const [resultado, setResultado] = useState(null); // respuesta de la IA
-  const [items, setItems] = useState([]);
-  const [nombre, setNombre] = useState('');
+  const [items, setItems] = useState(inicial?.items ?? []);
+  const [nombre, setNombre] = useState(inicial?.nombre ?? '');
   const [guardarFav, setGuardarFav] = useState(false);
   const [estado, setEstado] = useState('editando'); // editando | analizando | guardando
   const [error, setError] = useState(null);
@@ -58,7 +66,7 @@ export default function MealForm({ fecha, onClose }) {
 
   async function analizar(conRespuestas = false) {
     if (!foto && !descripcion.trim()) {
-      setError('Agregue una foto o describa el alimento.');
+      setError(conFoto ? 'Agregue una foto o describa el alimento.' : 'Escriba qué comió y en qué cantidad.');
       return;
     }
     setEstado('analizando');
@@ -96,11 +104,12 @@ export default function MealForm({ fecha, onClose }) {
     setEstado('guardando');
     setError(null);
     try {
-      let photo_path = null;
-      if (foto?.blob) {
-        photo_path = `${userId}/${uuid()}.jpg`;
-        const up = await supabase.storage.from('meal-photos').upload(photo_path, foto.blob, { contentType: 'image/jpeg' });
-        if (up.error) photo_path = null; // si falla la foto, igual se guarda el registro
+      // La foto solo se conserva en las comidas frecuentes.
+      let fotoFavorita = null;
+      if (guardarFav && foto?.blob) {
+        fotoFavorita = `${userId}/frecuentes/${uuid()}.jpg`;
+        const up = await supabase.storage.from('meal-photos').upload(fotoFavorita, foto.blob, { contentType: 'image/jpeg' });
+        if (up.error) fotoFavorita = null; // si falla la foto, igual se guarda la comida
       }
       const limpios = validos.map((it) => ({
         ...it,
@@ -120,9 +129,9 @@ export default function MealForm({ fecha, onClose }) {
         carbs_g: Math.round(total.c * 10) / 10,
         fat_g: Math.round(total.g * 10) / 10,
         items: limpios,
-        ai_confidence: resultado?.confianza ?? null,
-        source: resultado ? 'ia' : 'manual',
-        photo_path,
+        ai_confidence: resultado?.confianza ?? inicial?.confianza ?? null,
+        source: resultado || inicial?.fuente === 'ia' ? 'ia' : 'manual',
+        photo_path: null,
       };
       const { error: e1 } = await supabase.from('meals').insert(fila);
       if (e1) throw e1;
@@ -130,6 +139,7 @@ export default function MealForm({ fecha, onClose }) {
         const { error: e2 } = await supabase.from('favorite_meals').insert({
           user_id: userId, name: desc, meal_type: tipo, kcal: fila.kcal,
           protein_g: fila.protein_g, carbs_g: fila.carbs_g, fat_g: fila.fat_g, items: limpios,
+          photo_path: fotoFavorita,
         });
         if (e2) throw e2;
       }
@@ -145,7 +155,7 @@ export default function MealForm({ fecha, onClose }) {
   const ocupado = estado !== 'editando';
 
   return (
-    <Modal title="Registrar comida o bebida" onClose={() => onClose(false)}>
+    <Modal title={inicial?.titulo ?? (conFoto ? 'Registrar con foto' : 'Escribir lo que comí')} onClose={() => onClose(false)}>
       <div className="stack">
         <div className="chips" role="radiogroup" aria-label="Tipo de comida">
           {TIPOS_COMIDA.map((t) => (
@@ -155,7 +165,7 @@ export default function MealForm({ fecha, onClose }) {
           ))}
         </div>
 
-        {foto ? (
+        {!inicial && conFoto && (foto ? (
           <div className="stack" style={{ gap: 6 }}>
             <img src={foto.preview} alt="Foto de la comida" className="preview-img" />
             <button className="btn small ghost" onClick={() => setFoto(null)}>Cambiar foto</button>
@@ -166,23 +176,34 @@ export default function MealForm({ fecha, onClose }) {
             <b>Tomar o elegir una foto</b>
             <small>Si hay etiqueta nutricional, fotografíela también</small>
           </button>
-        )}
+        ))}
         <input ref={inputRef} type="file" accept="image/*" capture="environment" hidden onChange={elegirFoto} />
 
-        <label className="field">
-          Datos relevantes (porción, gramos, preparación, marca)
-          <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)}
-            placeholder="Ej: arroz con pollo al horno, 1 taza de arroz, pechuga de 150 g, una cucharada de aceite" />
-        </label>
+        {!inicial && (
+          <>
+            <label className="field">
+              {conFoto ? 'Datos relevantes (porción, gramos, preparación, marca)' : '¿Qué comió o bebió, y cuánto?'}
+              <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} autoFocus={!conFoto}
+                placeholder={conFoto
+                  ? 'Ej: arroz con pollo al horno, 1 taza de arroz, pechuga de 150 g, una cucharada de aceite'
+                  : 'Ej: 2 huevos revueltos, una marraqueta con media palta y un café con leche'} />
+            </label>
 
-        <div className="stack" style={{ gap: 8 }}>
-          <button className="btn primary big block" disabled={ocupado} onClick={() => analizar(false)}>
-            {estado === 'analizando' ? <><Spinner /> Analizando su plato…</> : <><span className="emoji" aria-hidden="true">✨</span> Analizar con IA</>}
-          </button>
-          {!items.length && (
-            <button className="btn ghost block" disabled={ocupado} onClick={() => setItems([itemVacio()])}>Prefiero ingresar los valores a mano</button>
-          )}
-        </div>
+            <div className="stack" style={{ gap: 8 }}>
+              <button className="btn primary big block" disabled={ocupado} onClick={() => analizar(false)}>
+                {estado === 'analizando'
+                  ? <><Spinner /> {conFoto ? 'Analizando su plato…' : 'Calculando…'}</>
+                  : <><span className="emoji" aria-hidden="true">✨</span> {conFoto ? 'Analizar con IA' : 'Calcular con IA'}</>}
+              </button>
+              {!items.length && (
+                <div className="row" style={{ justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}>
+                  {!conFoto && <button className="btn small ghost" disabled={ocupado} onClick={() => setConFoto(true)}>Agregar una foto</button>}
+                  <button className="btn small ghost" disabled={ocupado} onClick={() => setItems([itemVacio()])}>Ingresar los valores a mano</button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         <ErrorBox>{error}</ErrorBox>
 
@@ -258,8 +279,9 @@ export default function MealForm({ fecha, onClose }) {
             </div>
             <label className="check">
               <input type="checkbox" checked={guardarFav} onChange={(e) => setGuardarFav(e.target.checked)} />
-              <span>Guardar como comida frecuente</span>
+              <span>Guardar como comida frecuente{foto ? ' (con su foto)' : ''}</span>
             </label>
+            {foto && !guardarFav && <small>La foto solo se usó para el análisis y no quedará guardada.</small>}
             <button className="btn primary big block" disabled={ocupado} onClick={guardar}>
               {estado === 'guardando' ? 'Guardando…' : 'Guardar registro'}
             </button>
