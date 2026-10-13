@@ -1,5 +1,5 @@
 -- =====================================================================
--- Comedia · Esquema inicial
+-- Comidia · Esquema inicial
 -- Seguimiento de calorías, macros, agua, ejercicio, peso y cintura.
 -- Multiusuario: cada persona solo ve y modifica sus propios datos (RLS).
 -- =====================================================================

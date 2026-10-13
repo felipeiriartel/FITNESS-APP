@@ -32,7 +32,7 @@ export default function Auth() {
         <div className="brand">
           <img src="/icon.svg" alt="" />
           <div>
-            <h1>Comedia</h1>
+            <h1>Comidia</h1>
             <small>Fotografíe su plato y sepa cuánto comió</small>
           </div>
         </div>

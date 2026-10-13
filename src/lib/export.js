@@ -78,20 +78,20 @@ export async function exportarExcel(userId, ctx, metas) {
   })));
 
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  descargar(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `comedia-${todayISO()}.xlsx`);
+  descargar(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `comidia-${todayISO()}.xlsx`);
 }
 
-/** Respaldo completo en JSON, que se puede importar en cualquier instalación de Comedia. */
+/** Respaldo completo en JSON, que se puede importar en cualquier instalación de Comidia. */
 export async function exportarJSON(userId) {
   const d = await leerTodo(userId);
-  const respaldo = { app: 'comedia', version: 1, exportado: new Date().toISOString(), ...d };
-  descargar(new Blob([JSON.stringify(respaldo, null, 2)], { type: 'application/json' }), `comedia-respaldo-${todayISO()}.json`);
+  const respaldo = { app: 'comidia', version: 1, exportado: new Date().toISOString(), ...d };
+  descargar(new Blob([JSON.stringify(respaldo, null, 2)], { type: 'application/json' }), `comidia-respaldo-${todayISO()}.json`);
 }
 
 /** Importa un respaldo JSON en la cuenta actual. Las fotos no se incluyen. */
 export async function importarJSON(userId, file) {
   const data = JSON.parse(await file.text());
-  if (!['comedia', 'balance'].includes(data.app)) throw new Error('El archivo no es un respaldo de Comedia.');
+  if (!['comidia', 'comedia', 'balance'].includes(data.app)) throw new Error('El archivo no es un respaldo de Comidia.');
   const limpiar = (filas) => (filas ?? []).map(({ id, user_id, created_at, updated_at, ...r }) => ({ ...r, user_id: userId }));
   if (data.profile) {
     const { error } = await supabase.from('profiles').upsert(limpiar([data.profile])[0]);

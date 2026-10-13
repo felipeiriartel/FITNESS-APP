@@ -5,6 +5,7 @@ import { addDays, formatLargo, fromISO, todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
 import { Bar, Icon, Macro, Pill, Ring, useToast } from '../components/ui.jsx';
+import WaterInput from '../components/WaterInput.jsx';
 
 export default function Today({ fecha, setFecha, abrir }) {
   const { metas, ctx, exercises, water, weights, userId, reload } = useData();
@@ -60,13 +61,6 @@ export default function Today({ fecha, setFecha, abrir }) {
     const { error } = await supabase.from('exercise_logs').delete().eq('id', e.id);
     if (error) return toast(error.message, 'error');
     toast('Ejercicio eliminado');
-    reload();
-  }
-
-  async function agregarAgua(ml) {
-    const { error } = await supabase.from('water_logs').insert({ user_id: userId, log_date: fecha, ml });
-    if (error) return toast(error.message, 'error');
-    toast(`💧 ${ml >= 1000 ? `${ml / 1000} L` : `${ml} ml`} de agua registrados`);
     reload();
   }
 
@@ -177,12 +171,8 @@ export default function Today({ fecha, setFecha, abrir }) {
           <span><span className="water-value num">{fmt(aguaDia / 1000, 2)}</span> <small>/ {fmt(metas.agua / 1000, 1)} L</small></span>
         </div>
         <Bar value={aguaDia} max={metas.agua} color="var(--agua)" />
-        <div className="row wrap">
-          <button className="btn small" onClick={() => agregarAgua(250)}>+250 ml</button>
-          <button className="btn small" onClick={() => agregarAgua(500)}>+500 ml</button>
-          <button className="btn small" onClick={() => agregarAgua(1000)}>+1 L</button>
-          {aguaDia > 0 && <button className="btn small ghost" onClick={deshacerAgua}>Deshacer</button>}
-        </div>
+        <WaterInput fecha={fecha} />
+        {aguaDia > 0 && <button className="btn small ghost" onClick={deshacerAgua}>Deshacer el último registro</button>}
         <small>Registre aquí solo agua. Jugos, bebidas o café con leche se registran como comida, en “Bebida”.</small>
       </section>
 

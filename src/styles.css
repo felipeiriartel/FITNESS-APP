@@ -1,5 +1,5 @@
 /* =====================================================================
-   Comedia · Estilos
+   Comidia · Estilos
    Paleta "feria": palta (principal), choclo (protagonista), ciruela
    (proteína), zapallo (carbohidratos), aceite (grasas), ají (exceso).
    ===================================================================== */
@@ -147,6 +147,8 @@ small { font-size: 0.9rem; }
 .btn.ghost:active:not(:disabled) { transform: none; box-shadow: none; background: var(--surface-2); }
 .btn.small { min-height: 42px; padding: 8px 14px; font-size: 0.95rem; border-radius: 12px; box-shadow: 0 3px 0 var(--btn-edge); }
 .btn.small:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--btn-edge); }
+.btn.ghost.small, .btn.ghost.small:active:not(:disabled) { box-shadow: none; transform: none; }
+.btn.ghost.small { color: var(--palta); }
 .btn.block { width: 100%; }
 .btn.big { min-height: 64px; font-size: 1.12rem; border-radius: 18px; }
 .btn .emoji { font-size: 1.3rem; line-height: 1; }
@@ -278,6 +280,32 @@ input[type='checkbox'] { width: 24px; min-height: 24px; height: 24px; accent-col
 
 /* Agua */
 .water-value { font-family: var(--font-display); font-size: 1.7rem; font-weight: 750; color: var(--agua); }
+.water-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.water-buttons .btn { padding: 8px 4px; }
+.water-custom { display: flex; flex-direction: column; gap: 12px; background: var(--surface-2); border-radius: 16px; padding: 14px; animation: fade-in 0.2s ease; }
+.water-ml { position: relative; width: 112px; flex-shrink: 0; }
+.water-ml input { padding-right: 36px; font-weight: 700; text-align: right; }
+.water-ml span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-weight: 600; pointer-events: none; }
+input[type='range'] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 34px; min-height: 0;
+  padding: 0; border: none; background: transparent; box-shadow: none; cursor: pointer;
+}
+input[type='range']:focus { box-shadow: none; }
+input[type='range']::-webkit-slider-runnable-track {
+  height: 12px; border-radius: 99px;
+  background: linear-gradient(to right, var(--agua) var(--pct, 0%), var(--line) var(--pct, 0%));
+}
+input[type='range']::-moz-range-track { height: 12px; border-radius: 99px; background: var(--line); }
+input[type='range']::-moz-range-progress { height: 12px; border-radius: 99px; background: var(--agua); }
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 30px; height: 30px; margin-top: -9px; border-radius: 50%;
+  background: var(--surface); border: 3px solid var(--agua); box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+}
+input[type='range']::-moz-range-thumb {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--surface); border: 3px solid var(--agua); box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+}
+input[type='range']:focus-visible::-webkit-slider-thumb { outline: 3px solid var(--choclo); outline-offset: 2px; }
 
 /* ---------- Barra inferior con botón central ---------- */
 .tabbar {
@@ -356,8 +384,8 @@ input[type='checkbox'] { width: 24px; min-height: 24px; height: 24px; accent-col
 .action.main { grid-column: 1 / -1; background: var(--palta); border-color: var(--palta-dark); color: var(--on-palta); box-shadow: 0 4px 0 var(--palta-dark); min-height: 96px; flex-direction: row; align-items: center; gap: 14px; }
 .action.main small { color: var(--on-palta); opacity: 0.85; }
 .action.main:active { box-shadow: 0 1px 0 var(--palta-dark); }
-.water-quick { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--surface); border: 1.5px solid var(--line); border-radius: 20px; padding: 14px 16px; }
-.water-quick .emoji { font-size: 1.7rem; }
+.water-quick { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 10px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 20px; padding: 14px 16px; }
+.water-quick .emoji { font-size: 1.5rem; line-height: 1; }
 
 /* ---------- Avisos ---------- */
 .toasts { position: fixed; left: 0; right: 0; bottom: calc(100px + env(safe-area-inset-bottom)); z-index: 60; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; padding: 0 16px; }

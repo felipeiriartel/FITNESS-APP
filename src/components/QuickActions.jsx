@@ -1,25 +1,10 @@
-import { useState } from 'react';
-import { supabase } from '../lib/supabase.js';
 import { todayISO } from '../lib/dates.js';
-import { useData } from '../data.jsx';
-import { Modal, useToast } from './ui.jsx';
+import { Modal } from './ui.jsx';
+import WaterInput from './WaterInput.jsx';
 
 /** Hoja que abre el botón ＋: reúne todo lo que se puede registrar. */
 export default function QuickActions({ fecha, onClose, abrir }) {
-  const { userId, reload } = useData();
-  const toast = useToast();
-  const [ocupado, setOcupado] = useState(false);
   const esHoy = fecha === todayISO();
-
-  async function agua(ml) {
-    setOcupado(true);
-    const { error } = await supabase.from('water_logs').insert({ user_id: userId, log_date: fecha, ml });
-    setOcupado(false);
-    if (error) return toast(error.message, 'error');
-    toast(`💧 ${ml >= 1000 ? `${ml / 1000} L` : `${ml} ml`} de agua registrados`);
-    reload();
-  }
-
   return (
     <Modal title={esHoy ? '¿Qué quiere registrar?' : 'Registrar en el día elegido'} onClose={onClose}>
       <div className="actions">
@@ -46,10 +31,8 @@ export default function QuickActions({ fecha, onClose, abrir }) {
           <small>Y cintura</small>
         </button>
         <div className="water-quick">
-          <span className="emoji">💧</span>
-          <b className="grow">Agua</b>
-          <button className="btn small" disabled={ocupado} onClick={() => agua(250)}>+250 ml</button>
-          <button className="btn small" disabled={ocupado} onClick={() => agua(500)}>+500 ml</button>
+          <div className="section-title"><span className="emoji" aria-hidden="true">💧</span><b>Agua</b></div>
+          <WaterInput fecha={fecha} />
         </div>
       </div>
     </Modal>

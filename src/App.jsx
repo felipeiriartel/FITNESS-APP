@@ -37,7 +37,7 @@ export default function App() {
       </div>
     );
   } else if (session === undefined) {
-    contenido = <Cargando texto="Abriendo Comedia…" />;
+    contenido = <Cargando texto="Abriendo Comidia…" />;
   } else if (!session) {
     contenido = <Auth />;
   } else if (recuperando) {
@@ -93,7 +93,7 @@ function Shell({ email }) {
     return (
       <div className="app page">
         <div className="stack">
-          <div className="brand"><img src="/icon.svg" alt="" /><h1 className="welcome-title">Bienvenido a Comedia</h1></div>
+          <div className="brand"><img src="/icon.svg" alt="" /><h1 className="welcome-title">Bienvenido a Comidia</h1></div>
           <p className="muted">Con estos datos calculamos su gasto diario y su meta de calorías y proteína. Puede cambiarlos cuando quiera.</p>
           <section className="card">
             <ProfileForm inicial={profile} conPeso textoBoton="Comenzar" />

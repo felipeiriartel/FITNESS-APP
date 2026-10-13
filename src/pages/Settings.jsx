@@ -95,7 +95,7 @@ export default function Settings({ email }) {
       </section>
 
       <small>
-        Comedia entrega estimaciones de apoyo y no reemplaza la evaluación de un nutricionista o médico.
+        Comidia entrega estimaciones de apoyo y no reemplaza la evaluación de un nutricionista o médico.
       </small>
     </div>
   );

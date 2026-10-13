@@ -1,4 +1,4 @@
-# Comedia
+# Comidia
 
 Aplicación web para controlar calorías, proteína, agua, ejercicio y peso, con análisis de fotos de comida mediante IA.
 Es multiusuario: cualquier persona puede crear su cuenta y cada una ve solo sus propios datos.
@@ -46,7 +46,7 @@ src/components/                         Formularios, gráfico y componentes de i
 1. Cree un proyecto en [supabase.com](https://supabase.com).
 2. En **SQL Editor**, pegue y ejecute el contenido de `supabase/migrations/001_init.sql`.
 3. En **Authentication → Providers**, deje activo **Email**. Si no quiere confirmar correos al registrarse, desactive *Confirm email*.
-4. En **Authentication → URL Configuration**, ponga en *Site URL* la dirección que le dé Netlify (por ejemplo `https://comedia-xxx.netlify.app`).
+4. En **Authentication → URL Configuration**, ponga en *Site URL* la dirección que le dé Netlify (por ejemplo `https://comidia-xxx.netlify.app`).
 
 ### 2. Función de IA
 
