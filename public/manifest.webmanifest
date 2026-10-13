@@ -1,9 +1,9 @@
 {
-  "name": "Balance",
-  "short_name": "Balance",
+  "name": "Comedia",
+  "short_name": "Comedia",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f6f5f1",
-  "theme_color": "#1f6f5c",
+  "background_color": "#eef4ef",
+  "theme_color": "#2f9e5b",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }

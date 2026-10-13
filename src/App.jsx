@@ -73,7 +73,7 @@ function Shell({ email }) {
     return (
       <div className="app">
         <div className="stack">
-          <div className="brand"><img src="/icon.svg" alt="" /><h1>Bienvenido a Balance</h1></div>
+          <div className="brand"><img src="/icon.svg" alt="" /><h1>Bienvenido a Comedia</h1></div>
           <p className="muted">Con estos datos calculamos su gasto diario y su meta de calorías y proteína. Puede cambiarlos cuando quiera.</p>
           <section className="card">
             <ProfileForm inicial={profile} conPeso textoBoton="Comenzar" />

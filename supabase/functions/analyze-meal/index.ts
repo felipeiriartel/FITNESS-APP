@@ -1,4 +1,4 @@
-// Balance · Función de análisis nutricional con IA
+// Comedia · Función de análisis nutricional con IA
 // Recibe una foto (base64) y/o una descripción, y devuelve calorías y macros estimados.
 // Proveedor configurable con secretos de Supabase:
 //   AI_PROVIDER = anthropic | openai | gemini   (por defecto: anthropic)

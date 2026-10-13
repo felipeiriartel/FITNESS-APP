@@ -1,4 +1,4 @@
-// Cálculos nutricionales de Balance.
+// Cálculos nutricionales de Comedia.
 // Todas las funciones son puras para poder probarlas sin la interfaz.
 import { addDays, ageOn, diffDays } from './dates.js';
 

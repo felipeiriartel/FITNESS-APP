@@ -97,7 +97,7 @@ export default function Settings({ email }) {
       </section>
 
       <small>
-        Balance entrega estimaciones de apoyo y no reemplaza la evaluación de un nutricionista o médico.
+        Comedia entrega estimaciones de apoyo y no reemplaza la evaluación de un nutricionista o médico.
       </small>
     </div>
   );

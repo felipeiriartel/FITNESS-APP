@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { fmt } from '../lib/format.js';
 
 export function Modal({ title, onClose, children }) {
@@ -61,6 +61,10 @@ const PATHS = {
   estrella: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z',
   camara: 'M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 100-8 4 4 0 000 8z',
   mas: 'M12 5v14M5 12h14',
+  gota: 'M12 3.5c3.5 4.2 6 7.6 6 10.5a6 6 0 01-12 0c0-2.9 2.5-6.3 6-10.5z',
+  pesa: 'M3 10v4M6 7v10M18 7v10M21 10v4M6 12h12',
+  plato: 'M12 20a8 8 0 100-16 8 8 0 000 16zM12 16a4 4 0 100-8 4 4 0 000 8z',
+  balanza: 'M5 20h14l-1.5-12h-11zM9 8a3 3 0 016 0',
 };
 
 export function Icon({ name, size = 20, filled }) {
@@ -79,4 +83,32 @@ export function Pill({ estado, children }) {
 export function ErrorBox({ children }) {
   if (!children) return null;
   return <div className="alert error" role="alert">{children}</div>;
+}
+
+/**
+ * El plato: el borde se llena a medida que se consumen calorías.
+ * Verde dentro de la meta, amarillo con leve exceso, rojo con exceso.
+ */
+export function Plate({ consumido, meta, estado, children }) {
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  const pct = meta > 0 ? Math.min(1, consumido / meta) : 0;
+  // Se llena una vez al abrir la pantalla.
+  const [listo, setListo] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setListo(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const color = estado === 'exceso' ? 'var(--tomate)' : estado === 'leve' ? 'var(--choclo)' : 'var(--palta)';
+  return (
+    <div className="plate">
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <circle cx="60" cy="60" r={r} fill="none" className="rim-track" strokeWidth="10" />
+        <circle cx="60" cy="60" r={r} fill="none" className="rim-fill" stroke={color} strokeWidth="10"
+          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={listo ? c * (1 - pct) : c} />
+        <circle cx="60" cy="60" r="40" className="dish" />
+      </svg>
+      <div className="plate-center">{children}</div>
+    </div>
+  );
 }

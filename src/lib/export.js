@@ -78,20 +78,21 @@ export async function exportarExcel(userId, ctx, metas) {
   })));
 
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  descargar(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `balance-${todayISO()}.xlsx`);
+  descargar(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `comedia-${todayISO()}.xlsx`);
 }
 
-/** Respaldo completo en JSON, que se puede importar en cualquier instalación de Balance. */
+/** Respaldo completo en JSON, que se puede importar en cualquier instalación de Comedia. */
 export async function exportarJSON(userId) {
   const d = await leerTodo(userId);
-  const respaldo = { app: 'balance', version: 1, exportado: new Date().toISOString(), ...d };
-  descargar(new Blob([JSON.stringify(respaldo, null, 2)], { type: 'application/json' }), `balance-respaldo-${todayISO()}.json`);
+  const respaldo = { app: 'comedia', version: 1, exportado: new Date().toISOString(), ...d };
+  descargar(new Blob([JSON.stringify(respaldo, null, 2)], { type: 'application/json' }), `comedia-respaldo-${todayISO()}.json`);
 }
 
 /** Importa un respaldo JSON en la cuenta actual. Las fotos no se incluyen. */
 export async function importarJSON(userId, file) {
   const data = JSON.parse(await file.text());
-  if (data.app !== 'balance') throw new Error('El archivo no es un respaldo de Balance.');
+  // 'balance' fue el nombre provisorio de la app; sus respaldos siguen siendo válidos.
+  if (!['comedia', 'balance'].includes(data.app)) throw new Error('El archivo no es un respaldo de Comedia.');
   const limpiar = (filas) => (filas ?? []).map(({ id, user_id, created_at, updated_at, ...r }) => ({ ...r, user_id: userId }));
   if (data.profile) {
     const { error } = await supabase.from('profiles').upsert(limpiar([data.profile])[0]);
