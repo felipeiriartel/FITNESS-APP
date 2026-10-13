@@ -4,7 +4,7 @@ import { EJERCICIOS, NIVELES_ACTIVIDAD, TIPOS_COMIDA, kcalEjercicio } from '../l
 import { todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
-import { ErrorBox, Modal } from './ui.jsx';
+import { ErrorBox, Modal, useToast } from './ui.jsx';
 import { tipoPorHora } from './MealForm.jsx';
 
 const num = (v) => parseFloat(String(v).replace(',', '.'));
@@ -12,6 +12,7 @@ const num = (v) => parseFloat(String(v).replace(',', '.'));
 /* ---------------- Comidas frecuentes ---------------- */
 export function FavoritesPicker({ fecha, onClose }) {
   const { favorites, userId, reload } = useData();
+  const toast = useToast();
   const [tipo, setTipo] = useState(tipoPorHora());
   const [error, setError] = useState(null);
   const [ocupado, setOcupado] = useState(false);
@@ -27,6 +28,7 @@ export function FavoritesPicker({ fecha, onClose }) {
     });
     setOcupado(false);
     if (e) return setError(e.message);
+    toast(`⭐ ${f.name} registrada`);
     await reload();
     onClose();
   }
@@ -34,24 +36,28 @@ export function FavoritesPicker({ fecha, onClose }) {
   return (
     <Modal title="Comidas frecuentes" onClose={onClose}>
       <div className="stack">
-        <label className="field">
-          Registrar como
-          <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
-            {TIPOS_COMIDA.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-          </select>
-        </label>
+        <div className="chips" role="radiogroup" aria-label="Registrar como">
+          {TIPOS_COMIDA.map((t) => (
+            <button key={t.id} role="radio" aria-checked={tipo === t.id} className={`chip${tipo === t.id ? ' on' : ''}`} onClick={() => setTipo(t.id)}>
+              <span className="emoji" aria-hidden="true">{t.emoji}</span>{t.label}
+            </button>
+          ))}
+        </div>
         <ErrorBox>{error}</ErrorBox>
         {!favorites.length && (
-          <p className="muted">Aún no tiene comidas frecuentes. Al registrar una comida, marque “Guardar como comida frecuente”.</p>
+          <div className="empty">
+            <span className="emoji">⭐</span>
+            Aún no tiene comidas frecuentes. Al registrar una comida, marque “Guardar como comida frecuente” o toque la estrella en la lista del día.
+          </div>
         )}
         <div className="list">
           {favorites.map((f) => (
             <div className="list-item" key={f.id}>
               <div className="grow">
-                <div>{f.name}</div>
-                <small className="num">{fmt(f.kcal)} kcal · {fmt(f.protein_g)} g prot.</small>
+                <div className="item-title">{f.name}</div>
+                <small className="num">{fmt(f.kcal)} kcal, {fmt(f.protein_g)} g de proteína</small>
               </div>
-              <button className="btn small" disabled={ocupado} onClick={() => agregar(f, 0.5)}>½</button>
+              <button className="btn small" disabled={ocupado} onClick={() => agregar(f, 0.5)} aria-label={`Media porción de ${f.name}`}>½</button>
               <button className="btn small primary" disabled={ocupado} onClick={() => agregar(f, 1)}>Agregar</button>
             </div>
           ))}
@@ -64,6 +70,7 @@ export function FavoritesPicker({ fecha, onClose }) {
 /* ---------------- Ejercicio ---------------- */
 export function ExerciseForm({ fecha, onClose }) {
   const { userId, reload, metas } = useData();
+  const toast = useToast();
   const [tipo, setTipo] = useState('pesas');
   const [intensidad, setIntensidad] = useState('moderada');
   const [minutos, setMinutos] = useState('60');
@@ -83,6 +90,7 @@ export function ExerciseForm({ fecha, onClose }) {
     });
     setOcupado(false);
     if (e) return setError(e.message);
+    toast(`${EJERCICIOS[tipo].emoji} ${EJERCICIOS[tipo].label}: ${m} min registrados`);
     await reload();
     onClose();
   }
@@ -90,18 +98,17 @@ export function ExerciseForm({ fecha, onClose }) {
   return (
     <Modal title="Registrar ejercicio" onClose={onClose}>
       <div className="stack">
-        <div className="grid2">
-          <label className="field">
-            Tipo
-            <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
-              {Object.entries(EJERCICIOS).map(([id, e]) => <option key={id} value={id}>{e.label}</option>)}
-            </select>
-          </label>
-          <label className="field">
-            Duración (min)
-            <input inputMode="numeric" value={minutos} onChange={(e) => setMinutos(e.target.value)} />
-          </label>
+        <div className="chips" role="radiogroup" aria-label="Tipo de ejercicio">
+          {Object.entries(EJERCICIOS).map(([id, e]) => (
+            <button key={id} role="radio" aria-checked={tipo === id} className={`chip${tipo === id ? ' on' : ''}`} onClick={() => setTipo(id)}>
+              <span className="emoji" aria-hidden="true">{e.emoji}</span>{e.label}
+            </button>
+          ))}
         </div>
+        <label className="field">
+          Duración (minutos)
+          <input inputMode="numeric" value={minutos} onChange={(e) => setMinutos(e.target.value)} />
+        </label>
         <div className="stack" style={{ gap: 4 }}>
           <small className="muted">Intensidad</small>
           <div className="seg">
@@ -118,11 +125,11 @@ export function ExerciseForm({ fecha, onClose }) {
             placeholder="Ej: pierna — sentadilla 4×10, prensa 3×12, peso muerto rumano 3×10" />
         </label>
         <div className="alert info">
-          Gasto estimado: <b className="num">{fmt(kcal)} kcal</b>. Para su balance se considera el 75% de este valor,
+          Gasto estimado: <b className="num">{fmt(kcal)} kcal</b>. Para su balance diario se considera el 75% de este valor,
           porque las fórmulas suelen sobreestimar el gasto del ejercicio.
         </div>
         <ErrorBox>{error}</ErrorBox>
-        <button className="btn primary block" disabled={ocupado} onClick={guardar}>Guardar ejercicio</button>
+        <button className="btn primary big block" disabled={ocupado} onClick={guardar}>Guardar ejercicio</button>
       </div>
     </Modal>
   );
@@ -131,6 +138,7 @@ export function ExerciseForm({ fecha, onClose }) {
 /* ---------------- Peso y cintura ---------------- */
 export function WeightForm({ fecha = todayISO(), onClose }) {
   const { userId, reload, weights } = useData();
+  const toast = useToast();
   const existente = weights.find((w) => w.log_date === fecha);
   const [dia, setDia] = useState(fecha);
   const [peso, setPeso] = useState(existente ? String(existente.weight_kg) : '');
@@ -149,6 +157,7 @@ export function WeightForm({ fecha = todayISO(), onClose }) {
       .upsert({ user_id: userId, log_date: dia, weight_kg: p, waist_cm: c }, { onConflict: 'user_id,log_date' });
     setOcupado(false);
     if (e) return setError(e.message);
+    toast(`⚖️ ${fmt(p, 1)} kg registrados`);
     await reload();
     onClose();
   }
@@ -172,7 +181,7 @@ export function WeightForm({ fecha = todayISO(), onClose }) {
         </div>
         <ComoMedir />
         <ErrorBox>{error}</ErrorBox>
-        <button className="btn primary block" disabled={ocupado} onClick={guardar}>Guardar</button>
+        <button className="btn primary big block" disabled={ocupado} onClick={guardar}>Guardar peso</button>
       </div>
     </Modal>
   );
@@ -200,6 +209,7 @@ export function ComoMedir() {
 /* ---------------- Perfil ---------------- */
 export function ProfileForm({ inicial, conPeso, onSaved, textoBoton = 'Guardar' }) {
   const { userId, reload } = useData();
+  const toast = useToast();
   const [f, setF] = useState({
     display_name: inicial?.display_name ?? '',
     sex: inicial?.sex ?? 'M',
@@ -255,6 +265,7 @@ export function ProfileForm({ inicial, conPeso, onSaved, textoBoton = 'Guardar' 
     }
     setOcupado(false);
     if (e1) return setError(e1.message);
+    if (!conPeso) toast('Perfil y metas actualizados');
     await reload();
     onSaved?.();
   }
@@ -340,7 +351,7 @@ export function ProfileForm({ inicial, conPeso, onSaved, textoBoton = 'Guardar' 
         y el ritmo se limita al 1% del peso corporal por semana.
       </p>
       <ErrorBox>{error}</ErrorBox>
-      <button className="btn primary block" disabled={ocupado} onClick={guardar}>{ocupado ? 'Guardando…' : textoBoton}</button>
+      <button className="btn primary big block" disabled={ocupado} onClick={guardar}>{ocupado ? 'Guardando…' : textoBoton}</button>
     </div>
   );
 }

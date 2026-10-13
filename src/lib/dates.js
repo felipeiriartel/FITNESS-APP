@@ -39,8 +39,10 @@ export const DIAS_CORTOS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 export const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
   'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
+const mayuscula = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+
 export const formatLargo = (iso) =>
-  fromISO(iso).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
+  mayuscula(fromISO(iso).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' }));
 
 export const formatCorto = (iso) =>
   fromISO(iso).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });

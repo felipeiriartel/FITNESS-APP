@@ -1,28 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { EJERCICIOS, ESTADOS, TIPOS_COMIDA, estadoDia, gastoDelDia } from '../lib/calc.js';
-import { addDays, formatLargo, todayISO } from '../lib/dates.js';
+import { addDays, formatLargo, fromISO, todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
-import { Bar, Icon, MacroBar, Pill } from '../components/ui.jsx';
-import MealForm from '../components/MealForm.jsx';
-import { ExerciseForm, FavoritesPicker, WeightForm } from '../components/forms.jsx';
+import { Bar, Icon, Macro, Pill, Ring, useToast } from '../components/ui.jsx';
 
-const COLOR_ESTADO = { ok: 'var(--ok)', leve: 'var(--warn)', exceso: 'var(--bad)', bajo: 'var(--low)', sin: 'var(--line)' };
-
-export default function Today({ fecha, setFecha }) {
+export default function Today({ fecha, setFecha, abrir }) {
   const { metas, ctx, exercises, water, weights, userId, reload } = useData();
+  const toast = useToast();
   const [meals, setMeals] = useState([]);
   const [fotos, setFotos] = useState({});
-  const [modal, setModal] = useState(null);
   const hoy = todayISO();
 
   const cargar = useCallback(async () => {
-    const { data } = await supabase
-      .from('meals')
-      .select('*')
-      .eq('log_date', fecha)
-      .order('created_at');
+    const { data } = await supabase.from('meals').select('*').eq('log_date', fecha).order('created_at');
     setMeals(data ?? []);
     const paths = (data ?? []).map((m) => m.photo_path).filter(Boolean);
     if (paths.length) {
@@ -42,12 +34,14 @@ export default function Today({ fecha, setFecha }) {
   const estado = estadoDia(consumo.kcal, metas.meta);
   const restante = metas.meta - consumo.kcal;
   const gasto = gastoDelDia(metas, kcalEj);
-  const pesoHoy = weights.find((w) => w.log_date === fecha);
+  const pesoDia = weights.find((w) => w.log_date === fecha);
 
   async function borrarComida(m) {
     if (!confirm(`¿Eliminar "${m.description}"?`)) return;
-    await supabase.from('meals').delete().eq('id', m.id);
+    const { error } = await supabase.from('meals').delete().eq('id', m.id);
+    if (error) return toast(error.message, 'error');
     if (m.photo_path) await supabase.storage.from('meal-photos').remove([m.photo_path]);
+    toast('Registro eliminado');
     reload();
   }
 
@@ -56,18 +50,23 @@ export default function Today({ fecha, setFecha }) {
       user_id: userId, name: m.description, meal_type: m.meal_type, kcal: m.kcal,
       protein_g: m.protein_g, carbs_g: m.carbs_g, fat_g: m.fat_g, items: m.items,
     });
-    alert(error ? error.message : 'Guardada en comidas frecuentes.');
-    if (!error) reload();
+    if (error) return toast(error.message, 'error');
+    toast('⭐ Guardada en comidas frecuentes');
+    reload();
   }
 
   async function borrarEjercicio(e) {
     if (!confirm('¿Eliminar este ejercicio?')) return;
-    await supabase.from('exercise_logs').delete().eq('id', e.id);
+    const { error } = await supabase.from('exercise_logs').delete().eq('id', e.id);
+    if (error) return toast(error.message, 'error');
+    toast('Ejercicio eliminado');
     reload();
   }
 
   async function agregarAgua(ml) {
-    await supabase.from('water_logs').insert({ user_id: userId, log_date: fecha, ml });
+    const { error } = await supabase.from('water_logs').insert({ user_id: userId, log_date: fecha, ml });
+    if (error) return toast(error.message, 'error');
+    toast(`💧 ${ml >= 1000 ? `${ml / 1000} L` : `${ml} ml`} de agua registrados`);
     reload();
   }
 
@@ -75,77 +74,95 @@ export default function Today({ fecha, setFecha }) {
     const ultimo = water.filter((w) => w.log_date === fecha).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
     if (!ultimo) return;
     await supabase.from('water_logs').delete().eq('id', ultimo.id);
+    toast(`Se quitaron ${ultimo.ml} ml de agua`);
     reload();
   }
 
-  const cerrar = () => setModal(null);
-
   return (
     <div className="stack">
-      <div className="row between">
-        <button className="icon-btn" onClick={() => setFecha(addDays(fecha, -1))} aria-label="Día anterior"><Icon name="izq" /></button>
-        <div style={{ textAlign: 'center' }}>
-          <h1 style={{ textTransform: 'capitalize' }}>{fecha === hoy ? 'Hoy' : formatLargo(fecha)}</h1>
-          {fecha === hoy && <small style={{ textTransform: 'capitalize' }}>{formatLargo(fecha)}</small>}
+      <header className="page-head">
+        <button className="icon-btn round" onClick={() => setFecha(addDays(fecha, -1))} aria-label="Día anterior"><Icon name="izq" /></button>
+        <div className="titles">
+          <h1 style={{ textTransform: 'capitalize' }}>
+            {fecha === hoy ? 'Hoy' : fecha === addDays(hoy, -1) ? 'Ayer' : fromISO(fecha).toLocaleDateString('es-CL', { weekday: 'long' })}
+          </h1>
+          <small>{formatLargo(fecha)}</small>
         </div>
-        <button className="icon-btn" disabled={fecha >= hoy} onClick={() => setFecha(addDays(fecha, 1))} aria-label="Día siguiente"
+        <button className="icon-btn round" onClick={() => setFecha(addDays(fecha, 1))} aria-label="Día siguiente"
           style={{ visibility: fecha >= hoy ? 'hidden' : 'visible' }}><Icon name="der" /></button>
-      </div>
+      </header>
 
-      <section className="card stack">
-        <div className="row between">
-          <div>
-            <div className="big num">{fmt(consumo.kcal)}</div>
-            <small>de {fmt(metas.meta)} kcal</small>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div className="num" style={{ fontSize: '1.3rem', fontWeight: 700, color: restante < 0 ? 'var(--bad)' : 'var(--text)' }}>
-              {restante < 0 ? `+${fmt(-restante)}` : fmt(restante)}
-            </div>
-            <small>{restante < 0 ? 'kcal sobre la meta' : 'kcal disponibles'}</small>
-          </div>
+      <section className="hero" aria-label="Resumen de calorías">
+        <Ring value={consumo.kcal} max={metas.meta} estado={estado === 'sin' ? 'ok' : estado}>
+          <span className="value num" style={{ color: restante < 0 ? 'var(--aji)' : undefined }}>
+            {fmt(Math.abs(restante))}
+          </span>
+          <span className="label">{restante < 0 ? 'kcal sobre la meta' : 'kcal disponibles'}</span>
+        </Ring>
+        <Pill estado={estado}>{ESTADOS[estado]}</Pill>
+        <div className="hero-stats">
+          <div className="stat"><b className="num">{fmt(consumo.kcal)}</b><span>Consumido</span></div>
+          <div className="stat"><b className="num">{fmt(metas.meta)}</b><span>Meta</span></div>
+          <div className="stat"><b className="num">{fmt(gasto)}</b><span>Gasto estimado</span></div>
         </div>
-        <Bar value={consumo.kcal} max={metas.meta} color={COLOR_ESTADO[estado]} />
-        <div className="row between wrap">
-          <Pill estado={estado}>{ESTADOS[estado]}</Pill>
-          <small className="num">Gasto estimado del día: {fmt(gasto)} kcal · Balance: {consumo.kcal ? fmt(consumo.kcal - gasto) : '—'}</small>
-        </div>
-        <MacroBar label="Proteína" value={consumo.protein_g} target={metas.proteina} color="var(--protein)" />
-        <MacroBar label="Carbohidratos" value={consumo.carbs_g} target={metas.carbos} color="var(--carbs)" />
-        <MacroBar label="Grasas" value={consumo.fat_g} target={metas.grasa} color="var(--fat)" />
       </section>
 
-      <div className="grid2">
-        <button className="btn primary" onClick={() => setModal('comida')}>+ Comida o bebida</button>
-        <button className="btn" onClick={() => setModal('favoritas')}>Comidas frecuentes</button>
+      <div className="macros">
+        <Macro nombre="Proteína" value={consumo.protein_g} target={metas.proteina} color="var(--ciruela)" />
+        <Macro nombre="Carbohidratos" value={consumo.carbs_g} target={metas.carbos} color="var(--zapallo)" />
+        <Macro nombre="Grasas" value={consumo.fat_g} target={metas.grasa} color="var(--aceite)" />
       </div>
 
+      <button className="btn primary big block" onClick={() => abrir('comida')}>
+        <span className="emoji">📷</span> Registrar comida con foto
+      </button>
+      <button className="btn block" onClick={() => abrir('favoritas')}>
+        <span className="emoji">⭐</span> Elegir una comida frecuente
+      </button>
+
       <section className="card">
-        <div className="card-head"><h2>Comidas</h2><small className="num">{meals.length} registro{meals.length === 1 ? '' : 's'}</small></div>
-        {!meals.length && <p className="muted">Sin registros. Tome una foto de su plato y la IA calculará calorías y macros.</p>}
+        <div className="card-head">
+          <h2>Comidas</h2>
+          <small className="num">{meals.length ? `${meals.length} ${meals.length === 1 ? 'registro' : 'registros'}` : ''}</small>
+        </div>
+        {!meals.length && (
+          <div className="empty">
+            <span className="emoji">🍽️</span>
+            Aún no hay comidas este día. Tome una foto de su plato para empezar.
+          </div>
+        )}
         {TIPOS_COMIDA.map((t) => {
           const grupo = meals.filter((m) => m.meal_type === t.id);
           if (!grupo.length) return null;
           return (
-            <div key={t.id}>
-              <div className="group-title">{t.label} · <span className="num">{fmt(grupo.reduce((s, m) => s + m.kcal, 0))} kcal</span></div>
+            <div key={t.id} className="group">
+              <div className="group-title">
+                <span><span aria-hidden="true">{t.emoji}</span>{t.label}</span>
+                <span className="num muted">{fmt(grupo.reduce((s, m) => s + m.kcal, 0))} kcal</span>
+              </div>
               <div className="list">
                 {grupo.map((m) => (
                   <div className="list-item" key={m.id}>
                     {m.photo_path && fotos[m.photo_path] ? (
                       <img className="thumb" src={fotos[m.photo_path]} alt="" />
                     ) : (
-                      <div className="thumb" />
+                      <div className="thumb" aria-hidden="true">{t.emoji}</div>
                     )}
                     <div className="grow">
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.description}</div>
-                      <small className="num">
-                        {fmt(m.kcal)} kcal · P {fmt(m.protein_g)} · C {fmt(m.carbs_g)} · G {fmt(m.fat_g)}
-                        {m.source === 'ia' && m.ai_confidence != null && ` · IA ${fmt(m.ai_confidence * 100)}%`}
-                      </small>
+                      <div className="item-title">{m.description}</div>
+                      <div className="tags">
+                        <span className="tag p">P {fmt(m.protein_g)} g</span>
+                        <span className="tag c">C {fmt(m.carbs_g)} g</span>
+                        <span className="tag g">G {fmt(m.fat_g)} g</span>
+                      </div>
                     </div>
-                    <button className="icon-btn" title="Guardar como frecuente" onClick={() => guardarFavorita(m)}><Icon name="estrella" size={18} /></button>
-                    <button className="icon-btn" title="Eliminar" onClick={() => borrarComida(m)}><Icon name="basura" size={18} /></button>
+                    <div className="item-side">
+                      <span className="item-kcal num">{fmt(m.kcal)}</span>
+                      <span className="item-actions">
+                        <button className="icon-btn" title="Guardar como frecuente" aria-label="Guardar como frecuente" onClick={() => guardarFavorita(m)}><Icon name="estrella" size={18} /></button>
+                        <button className="icon-btn" title="Eliminar" aria-label="Eliminar" onClick={() => borrarComida(m)}><Icon name="basura" size={18} /></button>
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -155,52 +172,51 @@ export default function Today({ fecha, setFecha }) {
       </section>
 
       <section className="card stack">
-        <div className="card-head" style={{ marginBottom: 0 }}>
-          <h2>Agua</h2>
-          <small className="num">{fmt(aguaDia)} / {fmt(metas.agua)} ml</small>
+        <div className="row between">
+          <div className="section-title"><span className="emoji" aria-hidden="true">💧</span><h2>Agua</h2></div>
+          <span><span className="water-value num">{fmt(aguaDia / 1000, 2)}</span> <small>/ {fmt(metas.agua / 1000, 1)} L</small></span>
         </div>
-        <Bar value={aguaDia} max={metas.agua} color="var(--water)" />
+        <Bar value={aguaDia} max={metas.agua} color="var(--agua)" />
         <div className="row wrap">
-          <button className="btn small" onClick={() => agregarAgua(250)}>+ 250 ml</button>
-          <button className="btn small" onClick={() => agregarAgua(500)}>+ 500 ml</button>
-          <button className="btn small" onClick={() => agregarAgua(1000)}>+ 1 L</button>
+          <button className="btn small" onClick={() => agregarAgua(250)}>+250 ml</button>
+          <button className="btn small" onClick={() => agregarAgua(500)}>+500 ml</button>
+          <button className="btn small" onClick={() => agregarAgua(1000)}>+1 L</button>
           {aguaDia > 0 && <button className="btn small ghost" onClick={deshacerAgua}>Deshacer</button>}
         </div>
-        <small>Registre aquí solo agua. Las bebidas con calorías (jugos, bebidas, café con leche) van como “Bebida”.</small>
+        <small>Registre aquí solo agua. Jugos, bebidas o café con leche se registran como comida, en “Bebida”.</small>
       </section>
 
       <section className="card">
         <div className="card-head">
-          <h2>Ejercicio</h2>
-          <button className="btn small" onClick={() => setModal('ejercicio')}>+ Ejercicio</button>
+          <div className="section-title"><span className="emoji" aria-hidden="true">🏋️</span><h2>Ejercicio</h2></div>
+          <button className="btn small" onClick={() => abrir('ejercicio')}>Agregar</button>
         </div>
         {!ejerciciosDia.length && <p className="muted">Sin ejercicio registrado este día.</p>}
         <div className="list">
           {ejerciciosDia.map((e) => (
             <div className="list-item" key={e.id}>
+              <div className="thumb" aria-hidden="true">{EJERCICIOS[e.exercise_type]?.emoji ?? '✨'}</div>
               <div className="grow">
-                <div>{EJERCICIOS[e.exercise_type]?.label ?? e.exercise_type} · {e.duration_min} min · {e.intensity}</div>
-                {e.description && <small>{e.description}</small>}
+                <div className="item-title">{EJERCICIOS[e.exercise_type]?.label ?? e.exercise_type}</div>
+                <small>{e.duration_min} min, intensidad {e.intensity}{e.description ? `. ${e.description}` : ''}</small>
               </div>
-              <small className="num">{fmt(e.kcal_est)} kcal</small>
-              <button className="icon-btn" title="Eliminar" onClick={() => borrarEjercicio(e)}><Icon name="basura" size={18} /></button>
+              <span className="item-kcal num">{fmt(e.kcal_est)}</span>
+              <button className="icon-btn" title="Eliminar" aria-label="Eliminar ejercicio" onClick={() => borrarEjercicio(e)}><Icon name="basura" size={19} /></button>
             </div>
           ))}
         </div>
       </section>
 
       <section className="card row between">
-        <div>
-          <h2>Peso</h2>
-          <small>{pesoHoy ? `${fmt(pesoHoy.weight_kg, 1)} kg${pesoHoy.waist_cm ? ` · cintura ${fmt(pesoHoy.waist_cm, 1)} cm` : ''}` : 'Sin registro este día'}</small>
+        <div className="section-title">
+          <span className="emoji" aria-hidden="true">⚖️</span>
+          <div>
+            <h2>Peso</h2>
+            <small>{pesoDia ? `${fmt(pesoDia.weight_kg, 1)} kg${pesoDia.waist_cm ? `, cintura ${fmt(pesoDia.waist_cm, 1)} cm` : ''}` : 'Sin registro este día'}</small>
+          </div>
         </div>
-        <button className="btn small" onClick={() => setModal('peso')}>{pesoHoy ? 'Editar' : 'Registrar'}</button>
+        <button className="btn small" onClick={() => abrir('peso')}>{pesoDia ? 'Editar' : 'Registrar'}</button>
       </section>
-
-      {modal === 'comida' && <MealForm fecha={fecha} onClose={cerrar} />}
-      {modal === 'favoritas' && <FavoritesPicker fecha={fecha} onClose={cerrar} />}
-      {modal === 'ejercicio' && <ExerciseForm fecha={fecha} onClose={cerrar} />}
-      {modal === 'peso' && <WeightForm fecha={fecha} onClose={cerrar} />}
     </div>
   );
 }

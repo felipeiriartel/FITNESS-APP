@@ -44,14 +44,14 @@ export default function CalendarPage({ abrirDia }) {
 
   return (
     <div className="stack">
-      <div className="row between">
-        <button className="icon-btn" onClick={() => mover(-1)} aria-label="Mes anterior"><Icon name="izq" /></button>
-        <h1>{MESES[mes.m]} {mes.y}</h1>
-        <button className="icon-btn" onClick={() => mover(1)} aria-label="Mes siguiente" disabled={esMesActual}
+      <div className="page-head">
+        <button className="icon-btn round" onClick={() => mover(-1)} aria-label="Mes anterior"><Icon name="izq" /></button>
+        <div className="titles"><h1>{MESES[mes.m]}</h1><small>{mes.y}</small></div>
+        <button className="icon-btn round" onClick={() => mover(1)} aria-label="Mes siguiente" disabled={esMesActual}
           style={{ visibility: esMesActual ? 'hidden' : 'visible' }}><Icon name="der" /></button>
       </div>
 
-      <section className="card">
+      <section className="card cal-card">
         <div className="cal">
           {DIAS_CORTOS.map((d) => <div key={d} className="cal-head">{d}</div>)}
           {celdas.map((iso, i) => {
@@ -75,12 +75,12 @@ export default function CalendarPage({ abrirDia }) {
 
       <div className="legend">
         {['ok', 'leve', 'exceso', 'bajo', 'sin'].map((e) => <Pill key={e} estado={e}>{ESTADOS[e]}</Pill>)}
-        <span className="pill sin"><span style={{ width: 7, height: 7, borderRadius: 9, background: 'var(--accent)', display: 'inline-block' }} /> Ejercicio</span>
+        <span className="pill sin"><span style={{ width: 8, height: 8, borderRadius: 9, background: 'var(--choclo-dark)', display: 'inline-block' }} /> Ejercicio</span>
       </div>
 
       <section className="card">
         <h2 style={{ marginBottom: 10 }}>Resumen del mes</h2>
-        <div className="grid3">
+        <div className="grid3 resp">
           <div className="kpi"><b className="num">{conteo.ok}</b><span>Días en meta</span></div>
           <div className="kpi"><b className="num">{conteo.leve + conteo.exceso}</b><span>Días sobre la meta</span></div>
           <div className="kpi"><b className="num">{conteo.sin + conteo.bajo}</b><span>Sin registro o incompletos</span></div>

@@ -5,15 +5,15 @@ import { addDays, formatCorto, startOfWeek, todayISO } from '../lib/dates.js';
 import { fmt, fmtKg, fmtSigno } from '../lib/format.js';
 import { useData } from '../data.jsx';
 import LineChart from '../components/LineChart.jsx';
-import { ComoMedir, WeightForm } from '../components/forms.jsx';
+import { ComoMedir } from '../components/forms.jsx';
 import { Icon } from '../components/ui.jsx';
 
 const RANGOS = { 30: '30 días', 90: '90 días', 365: '1 año', 0: 'Todo' };
 
-export default function Progress() {
+export default function Progress({ abrir }) {
   const { metas, ctx, weights, profile, reload } = useData();
-  const [modal, setModal] = useState(false);
   const [rango, setRango] = useState(90);
+  const [verTodo, setVerTodo] = useState(false);
   const hoy = todayISO();
   const desde = rango ? addDays(hoy, -rango) : '0000-01-01';
 
@@ -40,15 +40,15 @@ export default function Progress() {
 
   return (
     <div className="stack">
-      <div className="row between">
+      <header className="page-head">
         <h1>Progreso</h1>
-        <button className="btn small primary" onClick={() => setModal(true)}>+ Peso / cintura</button>
-      </div>
+        <button className="btn small primary" onClick={() => abrir('peso')}>⚖️ Registrar peso</button>
+      </header>
 
       <section className="card stack">
         <div className="grid3">
           <div className="kpi"><b className="num">{fmtKg(metas.peso)}</b><span>Peso tendencia (prom. 7 días)</span></div>
-          <div className="kpi"><b className="num">{fmtSigno(cambioTotal)} kg</b><span>Desde el inicio</span></div>
+          <div className="kpi"><b className="num" style={{ color: cambioTotal < 0 ? 'var(--palta)' : undefined }}>{fmtSigno(cambioTotal)} kg</b><span>Desde el inicio</span></div>
           <div className="kpi">
             <b className="num">{a.disponible ? `${fmtSigno(a.pendienteKgSemana, 2)} kg` : '—'}</b>
             <span>Ritmo real por semana (últ. 4 sem.)</span>
@@ -61,7 +61,7 @@ export default function Progress() {
         </div>
         <LineChart unit="kg" series={[
           { name: 'Pesajes', color: 'var(--muted)', points: visibles.map((w) => ({ date: w.log_date, value: Number(w.weight_kg) })), dots: true, line: false },
-          { name: 'Promedio 7 días', color: 'var(--accent)', points: promedio7 },
+          { name: 'Promedio 7 días', color: 'var(--palta)', points: promedio7 },
         ]} />
         <small>Los puntos son los pesajes diarios; la línea es el promedio de 7 días, que es el dato confiable para ver la tendencia.</small>
       </section>
@@ -69,7 +69,7 @@ export default function Progress() {
       <section className="card stack">
         <h2>Cintura</h2>
         {cinturas.length >= 2 ? (
-          <LineChart unit="cm" series={[{ name: 'Cintura', color: 'var(--fat)', points: cinturas, dots: true }]} />
+          <LineChart unit="cm" series={[{ name: 'Cintura', color: 'var(--aceite)', points: cinturas, dots: true }]} />
         ) : (
           <p className="muted">Registre su cintura una vez por semana junto con el peso. Si entrena con pesas, la cintura muestra la pérdida de grasa aunque la balanza no se mueva.</p>
         )}
@@ -134,7 +134,7 @@ export default function Progress() {
                   <td className="num">{s.diasEnMeta}</td>
                   <td className="num">{fmt(s.kcalProm)}</td>
                   <td className="num">{s.proteinaProm != null ? `${fmt(s.proteinaProm)} g` : '—'}</td>
-                  <td className="num" style={{ color: s.deficit < 0 ? 'var(--bad)' : undefined }}>{fmt(s.deficit)} kcal</td>
+                  <td className="num" style={{ color: s.deficit < 0 ? 'var(--aji)' : undefined }}>{fmt(s.deficit)} kcal</td>
                   <td className="num">{s.diasRegistrados ? `${fmt(s.perdidaEstimada, 2)} kg` : '—'}</td>
                   <td className="num">{fmtKg(s.pesoProm)}</td>
                   <td className="num">{s.cambioReal != null ? `${fmtSigno(s.cambioReal, 2)} kg` : '—'}</td>
@@ -154,7 +154,7 @@ export default function Progress() {
       <section className="card">
         <h2 style={{ marginBottom: 8 }}>Historial de pesajes</h2>
         <div className="list">
-          {[...weights].sort((x, y) => y.log_date.localeCompare(x.log_date)).slice(0, 30).map((w) => (
+          {[...weights].sort((x, y) => y.log_date.localeCompare(x.log_date)).slice(0, verTodo ? 120 : 10).map((w) => (
             <div className="list-item" key={w.id}>
               <div className="grow">{formatCorto(w.log_date)}</div>
               <span className="num">{fmt(w.weight_kg, 1)} kg{w.waist_cm ? ` · ${fmt(w.waist_cm, 1)} cm` : ''}</span>
@@ -162,9 +162,13 @@ export default function Progress() {
             </div>
           ))}
         </div>
+              {weights.length > 10 && (
+          <button className="btn small ghost block" onClick={() => setVerTodo((v) => !v)}>
+            {verTodo ? 'Mostrar menos' : `Ver los ${Math.min(weights.length, 120)} pesajes`}
+          </button>
+        )}
       </section>
 
-      {modal && <WeightForm onClose={() => setModal(false)} />}
     </div>
   );
 }

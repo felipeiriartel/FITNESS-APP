@@ -5,7 +5,7 @@ const exp = () => import('../lib/export.js');
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
 import { ProfileForm } from '../components/forms.jsx';
-import { ErrorBox, Icon } from '../components/ui.jsx';
+import { ErrorBox, Icon, useToast } from '../components/ui.jsx';
 
 const NOMBRES = {
   weight_logs: 'pesajes', meals: 'comidas', exercise_logs: 'ejercicios', water_logs: 'registros de agua', favorite_meals: 'comidas frecuentes',
@@ -13,7 +13,7 @@ const NOMBRES = {
 
 export default function Settings({ email }) {
   const { profile, favorites, userId, ctx, metas, reload } = useData();
-  const [msg, setMsg] = useState(null);
+  const toast = useToast();
   const [error, setError] = useState(null);
   const [ocupado, setOcupado] = useState(false);
   const fileRef = useRef(null);
@@ -21,10 +21,9 @@ export default function Settings({ email }) {
   async function ejecutar(fn, ok) {
     setOcupado(true);
     setError(null);
-    setMsg(null);
     try {
       const r = await fn();
-      if (ok) setMsg(typeof ok === 'function' ? ok(r) : ok);
+      if (ok) toast(typeof ok === 'function' ? ok(r) : ok);
     } catch (e) {
       setError(e.message ?? String(e));
     } finally {
@@ -52,11 +51,11 @@ export default function Settings({ email }) {
 
   return (
     <div className="stack">
-      <h1>Ajustes</h1>
+      <header className="page-head"><h1>Ajustes</h1></header>
 
       <section className="card">
         <h2 style={{ marginBottom: 12 }}>Perfil y metas</h2>
-        <ProfileForm inicial={profile} onSaved={() => setMsg('Perfil actualizado.')} textoBoton="Guardar cambios" />
+        <ProfileForm inicial={profile} textoBoton="Guardar cambios" />
       </section>
 
       <section className="card stack">
@@ -65,12 +64,11 @@ export default function Settings({ email }) {
           Descargue todos sus datos en Excel para revisarlos, o un respaldo JSON para trasladarlos a otra cuenta o a otra instalación de la app.
         </p>
         <div className="row wrap">
-          <button className="btn" disabled={ocupado} onClick={() => ejecutar(async () => (await exp()).exportarExcel(userId, ctx, metas), 'Excel descargado.')}>Descargar Excel</button>
-          <button className="btn" disabled={ocupado} onClick={() => ejecutar(async () => (await exp()).exportarJSON(userId), 'Respaldo descargado.')}>Descargar respaldo JSON</button>
-          <button className="btn" disabled={ocupado} onClick={() => fileRef.current?.click()}>Importar respaldo</button>
+          <button className="btn small" disabled={ocupado} onClick={() => ejecutar(async () => (await exp()).exportarExcel(userId, ctx, metas), '📊 Excel descargado')}>Descargar Excel</button>
+          <button className="btn small" disabled={ocupado} onClick={() => ejecutar(async () => (await exp()).exportarJSON(userId), '💾 Respaldo descargado')}>Descargar respaldo JSON</button>
+          <button className="btn small" disabled={ocupado} onClick={() => fileRef.current?.click()}>Importar respaldo</button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={importar} />
         </div>
-        {msg && <div className="alert info">{msg}</div>}
         <ErrorBox>{error}</ErrorBox>
       </section>
 
@@ -93,11 +91,11 @@ export default function Settings({ email }) {
           <h2>Cuenta</h2>
           <small>{email}</small>
         </div>
-        <button className="btn danger" onClick={() => supabase.auth.signOut()}>Cerrar sesión</button>
+        <button className="btn small danger" onClick={() => supabase.auth.signOut()}>Cerrar sesión</button>
       </section>
 
       <small>
-        Balance entrega estimaciones de apoyo y no reemplaza la evaluación de un nutricionista o médico.
+        Comedia entrega estimaciones de apoyo y no reemplaza la evaluación de un nutricionista o médico.
       </small>
     </div>
   );

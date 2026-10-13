@@ -4,7 +4,7 @@ import { comprimirImagen } from '../lib/image.js';
 import { TIPOS_COMIDA } from '../lib/calc.js';
 import { fmt, uuid } from '../lib/format.js';
 import { useData } from '../data.jsx';
-import { ErrorBox, Icon, Modal } from './ui.jsx';
+import { ErrorBox, Icon, Modal, Spinner, useToast } from './ui.jsx';
 
 export function tipoPorHora(d = new Date()) {
   const h = d.getHours();
@@ -22,6 +22,7 @@ const n = (v) => {
 
 export default function MealForm({ fecha, onClose }) {
   const { userId, reload } = useData();
+  const toast = useToast();
   const [tipo, setTipo] = useState(tipoPorHora());
   const [foto, setFoto] = useState(null); // { blob, base64, preview }
   const [descripcion, setDescripcion] = useState('');
@@ -132,6 +133,7 @@ export default function MealForm({ fecha, onClose }) {
         });
         if (e2) throw e2;
       }
+      toast(`✅ ${desc}: ${fila.kcal} kcal registradas`);
       await reload();
       onClose(true);
     } catch (e) {
@@ -145,20 +147,24 @@ export default function MealForm({ fecha, onClose }) {
   return (
     <Modal title="Registrar comida o bebida" onClose={() => onClose(false)}>
       <div className="stack">
-        <div className="seg" role="tablist" style={{ flexWrap: 'wrap' }}>
+        <div className="chips" role="radiogroup" aria-label="Tipo de comida">
           {TIPOS_COMIDA.map((t) => (
-            <button key={t.id} className={tipo === t.id ? 'on' : ''} onClick={() => setTipo(t.id)}>{t.label}</button>
+            <button key={t.id} role="radio" aria-checked={tipo === t.id} className={`chip${tipo === t.id ? ' on' : ''}`} onClick={() => setTipo(t.id)}>
+              <span className="emoji" aria-hidden="true">{t.emoji}</span>{t.label}
+            </button>
           ))}
         </div>
 
         {foto ? (
           <div className="stack" style={{ gap: 6 }}>
             <img src={foto.preview} alt="Foto de la comida" className="preview-img" />
-            <button className="btn small ghost" onClick={() => setFoto(null)}>Quitar foto</button>
+            <button className="btn small ghost" onClick={() => setFoto(null)}>Cambiar foto</button>
           </div>
         ) : (
-          <button className="btn block" onClick={() => inputRef.current?.click()} style={{ minHeight: 64 }}>
-            <span className="row" style={{ justifyContent: 'center' }}><Icon name="camara" /> Tomar o elegir foto</span>
+          <button className="photo-pick" onClick={() => inputRef.current?.click()}>
+            <span className="emoji" aria-hidden="true">📷</span>
+            <b>Tomar o elegir una foto</b>
+            <small>Si hay etiqueta nutricional, fotografíela también</small>
           </button>
         )}
         <input ref={inputRef} type="file" accept="image/*" capture="environment" hidden onChange={elegirFoto} />
@@ -169,12 +175,12 @@ export default function MealForm({ fecha, onClose }) {
             placeholder="Ej: arroz con pollo al horno, 1 taza de arroz, pechuga de 150 g, una cucharada de aceite" />
         </label>
 
-        <div className="row wrap">
-          <button className="btn primary grow" disabled={ocupado} onClick={() => analizar(false)}>
-            {estado === 'analizando' ? 'Analizando…' : 'Analizar con IA'}
+        <div className="stack" style={{ gap: 8 }}>
+          <button className="btn primary big block" disabled={ocupado} onClick={() => analizar(false)}>
+            {estado === 'analizando' ? <><Spinner /> Analizando su plato…</> : <><span className="emoji" aria-hidden="true">✨</span> Analizar con IA</>}
           </button>
           {!items.length && (
-            <button className="btn" disabled={ocupado} onClick={() => setItems([itemVacio()])}>Ingresar a mano</button>
+            <button className="btn ghost block" disabled={ocupado} onClick={() => setItems([itemVacio()])}>Prefiero ingresar los valores a mano</button>
           )}
         </div>
 
@@ -183,10 +189,16 @@ export default function MealForm({ fecha, onClose }) {
         {resultado && (
           <div className="card stack" style={{ gap: 8 }}>
             <div className="row between">
-              <h3>{resultado.plato}</h3>
+              <h3 style={{ fontSize: '1.2rem' }}>{resultado.plato}</h3>
               <span className={`pill ${resultado.confianza >= 0.75 ? 'ok' : resultado.confianza >= 0.5 ? 'leve' : 'exceso'}`}>
                 Confianza {fmt(resultado.confianza * 100)}%
               </span>
+            </div>
+            <div className="result-total">
+              <div className="kpi"><b className="num">{fmt(resultado.total.kcal)}</b><span>kcal</span></div>
+              <div className="kpi"><b className="num" style={{ color: 'var(--ciruela)' }}>{fmt(resultado.total.proteina_g)} g</b><span>Proteína</span></div>
+              <div className="kpi"><b className="num" style={{ color: 'var(--zapallo)' }}>{fmt(resultado.total.carbohidratos_g)} g</b><span>Carbos</span></div>
+              <div className="kpi"><b className="num" style={{ color: 'var(--aceite)' }}>{fmt(resultado.total.grasas_g)} g</b><span>Grasas</span></div>
             </div>
             {resultado.supuestos.length > 0 && (
               <div>
@@ -203,8 +215,8 @@ export default function MealForm({ fecha, onClose }) {
                   {resultado.preguntas.map((q) => <li key={q}>{q}</li>)}
                 </ul>
                 <textarea value={respuestas} onChange={(e) => setRespuestas(e.target.value)} placeholder="Escriba sus respuestas aquí" />
-                <button className="btn small" disabled={ocupado || !respuestas.trim()} onClick={() => analizar(true)}>
-                  Volver a calcular con mis respuestas
+                <button className="btn primary" disabled={ocupado || !respuestas.trim()} onClick={() => analizar(true)}>
+                  {estado === 'analizando' ? <><Spinner /> Recalculando…</> : 'Volver a calcular con mis respuestas'}
                 </button>
               </div>
             )}
@@ -213,6 +225,7 @@ export default function MealForm({ fecha, onClose }) {
 
         {items.length > 0 && (
           <div className="card stack" style={{ gap: 8 }}>
+            <h3>Revise y ajuste si es necesario</h3>
             <label className="field">
               Nombre del registro
               <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Almuerzo casero" />
@@ -228,7 +241,7 @@ export default function MealForm({ fecha, onClose }) {
                 <input inputMode="decimal" value={it.proteina_g} aria-label="Proteína" onChange={(e) => editarItem(i, 'proteina_g', e.target.value)} />
                 <input inputMode="decimal" value={it.carbohidratos_g} aria-label="Carbohidratos" onChange={(e) => editarItem(i, 'carbohidratos_g', e.target.value)} />
                 <input inputMode="decimal" value={it.grasas_g} aria-label="Grasas" onChange={(e) => editarItem(i, 'grasas_g', e.target.value)} />
-                <button className="icon-btn" aria-label="Quitar" onClick={() => setItems((p) => p.filter((_, j) => j !== i))}>
+                <button className="icon-btn" style={{ width: 34, height: 34 }} aria-label="Quitar alimento" onClick={() => setItems((p) => p.filter((_, j) => j !== i))}>
                   <Icon name="x" size={16} />
                 </button>
               </div>
@@ -236,18 +249,18 @@ export default function MealForm({ fecha, onClose }) {
             {items.some((it) => it.cantidad) && (
               <small>Porciones estimadas: {items.filter((it) => it.cantidad).map((it) => `${it.nombre} (${it.cantidad})`).join(' · ')}</small>
             )}
-            <button className="btn small" onClick={() => setItems((p) => [...p, itemVacio()])}>+ Agregar alimento</button>
-            <div className="grid3" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+            <button className="btn small" onClick={() => setItems((p) => [...p, itemVacio()])}><Icon name="mas" size={18} /> Agregar alimento</button>
+            <div className="result-total">
               <div className="kpi"><b className="num">{fmt(total.kcal)}</b><span>kcal</span></div>
-              <div className="kpi"><b className="num">{fmt(total.p, 1)} g</b><span>Proteína</span></div>
-              <div className="kpi"><b className="num">{fmt(total.c, 1)} g</b><span>Carbohidratos</span></div>
-              <div className="kpi"><b className="num">{fmt(total.g, 1)} g</b><span>Grasas</span></div>
+              <div className="kpi"><b className="num" style={{ color: 'var(--ciruela)' }}>{fmt(total.p)} g</b><span>Proteína</span></div>
+              <div className="kpi"><b className="num" style={{ color: 'var(--zapallo)' }}>{fmt(total.c)} g</b><span>Carbos</span></div>
+              <div className="kpi"><b className="num" style={{ color: 'var(--aceite)' }}>{fmt(total.g)} g</b><span>Grasas</span></div>
             </div>
-            <label className="row" style={{ gap: 8 }}>
-              <input type="checkbox" checked={guardarFav} onChange={(e) => setGuardarFav(e.target.checked)} style={{ width: 18, minHeight: 18 }} />
+            <label className="check">
+              <input type="checkbox" checked={guardarFav} onChange={(e) => setGuardarFav(e.target.checked)} />
               <span>Guardar como comida frecuente</span>
             </label>
-            <button className="btn primary block" disabled={ocupado} onClick={guardar}>
+            <button className="btn primary big block" disabled={ocupado} onClick={guardar}>
               {estado === 'guardando' ? 'Guardando…' : 'Guardar registro'}
             </button>
           </div>

@@ -1,9 +1,10 @@
 {
-  "name": "Balance",
-  "short_name": "Balance",
+  "name": "Comedia",
+  "short_name": "Comedia",
+  "description": "Calorías, proteína, agua y ejercicio con análisis de fotos por IA",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f6f5f1",
-  "theme_color": "#1f6f5c",
-  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+  "background_color": "#f1f5ef",
+  "theme_color": "#1e6b47",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
 }

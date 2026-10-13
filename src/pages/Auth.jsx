@@ -32,8 +32,8 @@ export default function Auth() {
         <div className="brand">
           <img src="/icon.svg" alt="" />
           <div>
-            <h1>Balance</h1>
-            <small>Calorías, proteína y progreso en un solo lugar</small>
+            <h1>Comedia</h1>
+            <small>Fotografíe su plato y sepa cuánto comió</small>
           </div>
         </div>
         <div className="seg">
@@ -53,7 +53,7 @@ export default function Auth() {
         )}
         <ErrorBox>{error}</ErrorBox>
         {aviso && <div className="alert info">{aviso}</div>}
-        <button className="btn primary block" disabled={ocupado}>
+        <button className="btn primary big block" disabled={ocupado}>
           {ocupado ? 'Un momento…' : modo === 'entrar' ? 'Ingresar' : modo === 'registrar' ? 'Crear cuenta' : 'Enviar enlace'}
         </button>
         {modo === 'entrar' && (
@@ -79,7 +79,7 @@ export function NuevaClave({ onDone }) {
         <h1>Nueva contraseña</h1>
         <input type="password" minLength={6} required value={clave} onChange={(e) => setClave(e.target.value)} autoComplete="new-password" />
         <ErrorBox>{error}</ErrorBox>
-        <button className="btn primary block">Guardar</button>
+        <button className="btn primary big block">Guardar contraseña</button>
       </form>
     </div>
   );

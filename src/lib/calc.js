@@ -1,4 +1,4 @@
-// Cálculos nutricionales de Balance.
+// Cálculos nutricionales de Comedia.
 // Todas las funciones son puras para poder probarlas sin la interfaz.
 import { addDays, ageOn, diffDays } from './dates.js';
 
@@ -15,23 +15,23 @@ export const NIVELES_ACTIVIDAD = {
 
 // Valores MET aproximados (Compendio de Actividades Físicas).
 export const EJERCICIOS = {
-  pesas: { label: 'Pesas / fuerza', met: { baja: 3.5, moderada: 5, alta: 6 } },
-  futbol: { label: 'Fútbol', met: { baja: 6, moderada: 7, alta: 10 } },
-  correr: { label: 'Correr', met: { baja: 7, moderada: 9, alta: 11.5 } },
-  caminar: { label: 'Caminar', met: { baja: 2.8, moderada: 3.5, alta: 5 } },
-  bicicleta: { label: 'Bicicleta', met: { baja: 5.5, moderada: 7.5, alta: 10 } },
-  natacion: { label: 'Natación', met: { baja: 6, moderada: 8, alta: 10 } },
-  cardio: { label: 'Cardio / máquinas', met: { baja: 5, moderada: 7, alta: 9 } },
-  otro: { label: 'Otro', met: { baja: 3, moderada: 5, alta: 7 } },
+  pesas: { emoji: '🏋️', label: 'Pesas / fuerza', met: { baja: 3.5, moderada: 5, alta: 6 } },
+  futbol: { emoji: '⚽', label: 'Fútbol', met: { baja: 6, moderada: 7, alta: 10 } },
+  correr: { emoji: '🏃', label: 'Correr', met: { baja: 7, moderada: 9, alta: 11.5 } },
+  caminar: { emoji: '🚶', label: 'Caminar', met: { baja: 2.8, moderada: 3.5, alta: 5 } },
+  bicicleta: { emoji: '🚴', label: 'Bicicleta', met: { baja: 5.5, moderada: 7.5, alta: 10 } },
+  natacion: { emoji: '🏊', label: 'Natación', met: { baja: 6, moderada: 8, alta: 10 } },
+  cardio: { emoji: '🫀', label: 'Cardio / máquinas', met: { baja: 5, moderada: 7, alta: 9 } },
+  otro: { emoji: '✨', label: 'Otro', met: { baja: 3, moderada: 5, alta: 7 } },
 };
 
 export const TIPOS_COMIDA = [
-  { id: 'desayuno', label: 'Desayuno' },
-  { id: 'almuerzo', label: 'Almuerzo' },
-  { id: 'once', label: 'Once' },
-  { id: 'cena', label: 'Cena' },
-  { id: 'colacion', label: 'Colación' },
-  { id: 'bebida', label: 'Bebida' },
+  { id: 'desayuno', label: 'Desayuno', emoji: '🍳' },
+  { id: 'almuerzo', label: 'Almuerzo', emoji: '🍲' },
+  { id: 'once', label: 'Once', emoji: '☕' },
+  { id: 'cena', label: 'Cena', emoji: '🌙' },
+  { id: 'colacion', label: 'Colación', emoji: '🍎' },
+  { id: 'bebida', label: 'Bebida', emoji: '🥤' },
 ];
 
 const round10 = (n) => Math.round(n / 10) * 10;
