@@ -108,6 +108,7 @@ export default function Progress({ abrir }) {
         )}
         {a.atipico && <div className="alert warn">El gasto real calculado difiere demasiado de la fórmula; probablemente faltan comidas por registrar. Se usa solo la fórmula.</div>}
         {metas.ritmoLimitado && <div className="alert warn">El ritmo elegido supera el 1% de su peso por semana; se limitó a {fmt(metas.ritmo, 2)} kg.</div>}
+        {metas.manual && <div className="alert warn">Su meta está en modo manual, por lo que no considera su ejercicio ni su avance real. Puede cambiarla a automática en Ajustes.</div>}
         {metas.bajoMinimo && <div className="alert warn">Su meta manual está bajo el mínimo recomendado ({fmt(metas.minimo)} kcal).</div>}
         <div className="grid3">
           <div className="kpi"><b className="num">{fmt(metas.proteina)} g</b><span>Proteína/día</span></div>

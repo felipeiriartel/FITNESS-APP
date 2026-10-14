@@ -490,3 +490,8 @@ details summary { cursor: pointer; color: var(--palta); font-weight: 650; }
 .quick-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .quick-row .btn { flex-direction: column; gap: 4px; min-height: 76px; padding: 10px 6px; font-size: 0.95rem; }
 .quick-row .btn .emoji { font-size: 1.5rem; }
+
+/* Balance del día bajo el anillo */
+.day-balance { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 0.95rem; color: var(--muted); }
+.day-balance .deficit b { color: var(--palta); }
+.day-balance .superavit b { color: var(--aji); }

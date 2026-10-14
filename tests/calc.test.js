@@ -95,3 +95,25 @@ test('meta manual y piso de seguridad', () => {
   assert.ok(agresivo.meta >= agresivo.minimo);
   assert.ok(agresivo.ritmo <= 0.81);
 });
+
+test('opción A: en automático el ejercicio registrado sube la meta; en manual no', () => {
+  const inicio = '2026-09-15';
+  const hoy = addDays(inicio, 28);
+  const weights = [{ log_date: inicio, weight_kg: 81 }, { log_date: hoy, weight_kg: 81 }];
+  const sinEjercicio = construirContexto({ weights, meals: [], exercises: [], water: [] });
+  const exercises = [];
+  for (let i = 0; i < 28; i++) {
+    const d = addDays(inicio, i);
+    if (i % 7 < 4) exercises.push({ log_date: d, kcal_est: kcalEjercicio('pesas', 'moderada', 60, 81) });
+    if (i % 7 === 5) exercises.push({ log_date: d, kcal_est: kcalEjercicio('futbol', 'alta', 90, 81) });
+  }
+  const conEjercicio = construirContexto({ weights, meals: [], exercises, water: [] });
+  const auto0 = calcularMetas(perfil, sinEjercicio, hoy);
+  const auto1 = calcularMetas(perfil, conEjercicio, hoy);
+  console.log('auto sin ejercicio:', auto0.meta, '| auto con ejercicio:', auto1.meta, '| ejercicio/día:', auto1.ejercicio);
+  assert.ok(auto1.meta > auto0.meta);
+  assert.ok(auto1.ejercicio > 250);
+  const manual = { ...perfil, target_mode: 'manual', manual_target_kcal: 2100 };
+  assert.equal(calcularMetas(manual, sinEjercicio, hoy).meta, 2100);
+  assert.equal(calcularMetas(manual, conEjercicio, hoy).meta, 2100);
+});

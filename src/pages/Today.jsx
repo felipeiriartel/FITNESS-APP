@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { EJERCICIOS, ESTADOS, TIPOS_COMIDA, estadoDia, gastoDelDia } from '../lib/calc.js';
+import { EJERCICIOS, ESTADOS, FACTOR_EJERCICIO, TIPOS_COMIDA, estadoDia, gastoDelDia } from '../lib/calc.js';
 import { addDays, formatLargo, fromISO, todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
@@ -32,6 +32,9 @@ export default function Today({ fecha, setFecha, abrir }) {
   const estado = estadoDia(consumo.kcal, metas.meta);
   const restante = metas.meta - consumo.kcal;
   const gasto = gastoDelDia(metas, kcalEj);
+  const extraEjercicio = Math.round(kcalEj * FACTOR_EJERCICIO);
+  const balance = consumo.kcal - gasto; // negativo = déficit
+  const previsto = Math.round(gasto - metas.meta); // déficit si come justo la meta
   const pesoDia = weights.find((w) => w.log_date === fecha);
 
   async function borrarComida(m) {
@@ -91,6 +94,20 @@ export default function Today({ fecha, setFecha, abrir }) {
           <span className="label">{restante < 0 ? 'kcal sobre la meta' : 'kcal disponibles'}</span>
         </Ring>
         <Pill estado={estado}>{ESTADOS[estado]}</Pill>
+        <div className="day-balance">
+          {extraEjercicio > 0 && (
+            <span><span aria-hidden="true">🏋️</span> Ejercicio {fecha === hoy ? 'de hoy' : 'del día'}: <b className="num">+{fmt(extraEjercicio)} kcal</b> de gasto</span>
+          )}
+          {fecha === hoy || !consumo.kcal ? (
+            <span className={previsto > 0 ? 'deficit' : 'superavit'}>
+              Si llega a la meta, su déficit de hoy será de <b className="num">{fmt(Math.max(0, previsto))} kcal</b>
+            </span>
+          ) : (
+            <span className={balance < 0 ? 'deficit' : 'superavit'}>
+              {balance < 0 ? 'Déficit' : 'Superávit'} del día: <b className="num">{fmt(Math.abs(balance))} kcal</b>
+            </span>
+          )}
+        </div>
         <div className="hero-stats">
           <div className="stat"><b className="num">{fmt(consumo.kcal)}</b><span>Consumido</span></div>
           <div className="stat"><b className="num">{fmt(metas.meta)}</b><span>Meta</span></div>

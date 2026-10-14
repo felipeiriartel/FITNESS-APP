@@ -346,9 +346,12 @@ export function ProfileForm({ inicial, conPeso, onSaved, textoBoton = 'Guardar' 
           <button className={f.target_mode === 'manual' ? 'on' : ''} onClick={() => setF((p) => ({ ...p, target_mode: 'manual' }))}>Manual</button>
         </div>
         {f.target_mode === 'manual' ? (
-          <input inputMode="numeric" value={f.manual_target_kcal} onChange={set('manual_target_kcal')} placeholder="2100" aria-label="Meta manual en kcal" />
+          <>
+            <input inputMode="numeric" value={f.manual_target_kcal} onChange={set('manual_target_kcal')} placeholder="2100" aria-label="Meta manual en kcal" />
+            <small>Una meta manual es fija: no sube cuando registra ejercicio ni se ajusta con su peso real. Recomendamos la automática.</small>
+          </>
         ) : (
-          <small>Se calcula con su gasto estimado y se ajusta sola cada semana según su avance real.</small>
+          <small>Recomendada. Incluye el ejercicio que registra (promedio de las últimas 4 semanas) y se corrige sola con la evolución de su peso.</small>
         )}
       </div>
       <p className="muted" style={{ fontSize: '0.82rem' }}>
