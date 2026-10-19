@@ -31,7 +31,8 @@ Reglas:
 6. Entrega valores numéricos únicos (no rangos), redondeados: kcal a la unidad, macros a 1 decimal.
 7. "confianza" va de 0 a 1 y refleja qué tan seguro estás del total de calorías.
 8. Incluye como máximo 3 "preguntas", solo si la respuesta cambiaría la estimación en más de 15%. Si no, deja la lista vacía.
-9. Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional ni bloques de código, con esta forma exacta:
+9. Sé breve: como máximo 4 "supuestos" y 3 "preguntas", cada uno en una frase corta. En "cantidad" escribe solo la medida (ej: "150 g", "2 puñados ≈ 120 g").
+10. Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional ni bloques de código, con esta forma exacta:
 {"plato":"nombre corto","items":[{"nombre":"","cantidad":"ej: 150 g","gramos":150,"kcal":0,"proteina_g":0,"carbohidratos_g":0,"grasas_g":0}],"confianza":0.8,"supuestos":[""],"preguntas":[""]}`;
 
 const SYSTEM_SUGERIR = `Eres un nutricionista chileno que propone comidas caseras, simples y realistas para alguien que cuenta calorías y quiere cuidar su masa muscular.
@@ -46,6 +47,64 @@ Reglas:
 7. Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, con esta forma exacta:
 {"sugerencias":[{"nombre":"","descripcion":"una frase","ingredientes":["150 g de pechuga de pollo"],"kcal":0,"proteina_g":0,"carbohidratos_g":0,"grasas_g":0}]}`;
 
+const ITEM_SCHEMA = {
+  type: "object",
+  properties: {
+    nombre: { type: "string" },
+    cantidad: { type: "string" },
+    gramos: { type: "number" },
+    kcal: { type: "number" },
+    proteina_g: { type: "number" },
+    carbohidratos_g: { type: "number" },
+    grasas_g: { type: "number" },
+  },
+  required: ["nombre", "cantidad", "gramos", "kcal", "proteina_g", "carbohidratos_g", "grasas_g"],
+};
+
+const TOOLS = {
+  analizar: {
+    name: "registrar_estimacion",
+    description: "Entrega la estimación nutricional de la comida.",
+    input_schema: {
+      type: "object",
+      properties: {
+        plato: { type: "string" },
+        items: { type: "array", items: ITEM_SCHEMA },
+        confianza: { type: "number" },
+        supuestos: { type: "array", items: { type: "string" } },
+        preguntas: { type: "array", items: { type: "string" } },
+      },
+      required: ["plato", "items", "confianza", "supuestos", "preguntas"],
+    },
+  },
+  sugerir: {
+    name: "entregar_sugerencias",
+    description: "Entrega las 3 sugerencias de comida.",
+    input_schema: {
+      type: "object",
+      properties: {
+        sugerencias: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              nombre: { type: "string" },
+              descripcion: { type: "string" },
+              ingredientes: { type: "array", items: { type: "string" } },
+              kcal: { type: "number" },
+              proteina_g: { type: "number" },
+              carbohidratos_g: { type: "number" },
+              grasas_g: { type: "number" },
+            },
+            required: ["nombre", "descripcion", "ingredientes", "kcal", "proteina_g", "carbohidratos_g", "grasas_g"],
+          },
+        },
+      },
+      required: ["sugerencias"],
+    },
+  },
+};
+
 type Restante = { kcal?: number; proteina_g?: number; carbohidratos_g?: number; grasas_g?: number };
 type Body = {
   mode?: "analizar" | "sugerir";
@@ -58,6 +117,8 @@ type Body = {
   preferencias?: string;
 };
 type Uso = { entrada: number; salida: number };
+type Resultado = { raw: string; parsed?: Record<string, unknown>; truncado?: boolean; uso: Uso };
+type Modo = "analizar" | "sugerir";
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -97,7 +158,7 @@ function textoSugerir(b: Body): string {
   ].filter(Boolean).join("\n");
 }
 
-async function callAnthropic(key: string, model: string, system: string, b: Body, text: string) {
+async function callAnthropic(key: string, model: string, system: string, b: Body, text: string, modo: Modo): Promise<Resultado> {
   const content: unknown[] = [];
   if (b.image_base64) {
     content.push({
@@ -106,6 +167,7 @@ async function callAnthropic(key: string, model: string, system: string, b: Body
     });
   }
   content.push({ type: "text", text });
+  const tool = TOOLS[modo];
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -113,19 +175,29 @@ async function callAnthropic(key: string, model: string, system: string, b: Body
       "anthropic-version": "2023-06-01",
       "content-type": "application/json",
     },
-    body: JSON.stringify({ model, max_tokens: 2000, system, messages: [{ role: "user", content }] }),
+    body: JSON.stringify({
+      model,
+      max_tokens: 4096,
+      system: `${system}\n\nEntrega el resultado llamando a la herramienta ${tool.name}.`,
+      tools: [tool],
+      tool_choice: { type: "tool", name: tool.name },
+      messages: [{ role: "user", content }],
+    }),
   });
   const data = await readJson(r);
   if (!r.ok) throw new Error(data?.error?.message ?? `Error del proveedor (${r.status})`);
-  const raw = (data.content ?? [])
-    .filter((c: { type: string }) => c.type === "text")
-    .map((c: { text: string }) => c.text)
-    .join("");
-  const uso: Uso = { entrada: data.usage?.input_tokens ?? 0, salida: data.usage?.output_tokens ?? 0 };
-  return { raw, uso };
+  const bloques = (data.content ?? []) as { type: string; text?: string; input?: Record<string, unknown> }[];
+  const herramienta = bloques.find((c) => c.type === "tool_use");
+  const raw = bloques.filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
+  return {
+    raw,
+    parsed: herramienta?.input && typeof herramienta.input === "object" ? herramienta.input : undefined,
+    truncado: data.stop_reason === "max_tokens",
+    uso: { entrada: data.usage?.input_tokens ?? 0, salida: data.usage?.output_tokens ?? 0 },
+  };
 }
 
-async function callOpenAI(key: string, model: string, system: string, b: Body, text: string) {
+async function callOpenAI(key: string, model: string, system: string, b: Body, text: string): Promise<Resultado> {
   const content: unknown[] = [{ type: "text", text }];
   if (b.image_base64) {
     content.push({
@@ -138,6 +210,7 @@ async function callOpenAI(key: string, model: string, system: string, b: Body, t
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
+      max_tokens: 4096,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },
@@ -148,10 +221,10 @@ async function callOpenAI(key: string, model: string, system: string, b: Body, t
   const data = await readJson(r);
   if (!r.ok) throw new Error(data?.error?.message ?? `Error del proveedor (${r.status})`);
   const uso: Uso = { entrada: data.usage?.prompt_tokens ?? 0, salida: data.usage?.completion_tokens ?? 0 };
-  return { raw: data.choices?.[0]?.message?.content ?? "", uso };
+  return { raw: data.choices?.[0]?.message?.content ?? "", truncado: data.choices?.[0]?.finish_reason === "length", uso };
 }
 
-async function callGemini(key: string, model: string, system: string, b: Body, text: string) {
+async function callGemini(key: string, model: string, system: string, b: Body, text: string): Promise<Resultado> {
   const parts: unknown[] = [];
   if (b.image_base64) {
     parts.push({ inline_data: { mime_type: b.media_type ?? "image/jpeg", data: b.image_base64 } });
@@ -165,7 +238,7 @@ async function callGemini(key: string, model: string, system: string, b: Body, t
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: "user", parts }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
+        generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 4096 },
       }),
     },
   );
@@ -178,20 +251,24 @@ async function callGemini(key: string, model: string, system: string, b: Body, t
     entrada: data.usageMetadata?.promptTokenCount ?? 0,
     salida: data.usageMetadata?.candidatesTokenCount ?? 0,
   };
-  return { raw, uso };
+  return { raw, truncado: data.candidates?.[0]?.finishReason === "MAX_TOKENS", uso };
 }
 
-function extractJson(raw: string): Record<string, unknown> {
+/** Intenta leer un objeto JSON desde el texto de la IA. Devuelve null si no es posible. */
+function extractJson(raw: string): Record<string, unknown> | null {
   const cleaned = raw.replace(/```(?:json)?/gi, "").trim();
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
-  try {
-    if (start === -1 || end === -1) throw new Error("sin objeto JSON");
-    return JSON.parse(cleaned.slice(start, end + 1));
-  } catch (e) {
-    console.error("Respuesta de la IA no interpretable:", String(e), raw.slice(0, 1500));
-    throw new Error("La IA devolvió un formato inesperado. Intente nuevamente.");
+  if (start === -1 || end === -1) return null;
+  const candidato = cleaned.slice(start, end + 1);
+  for (const intento of [candidato, candidato.replace(/,\s*([}\]])/g, "$1")]) {
+    try {
+      return JSON.parse(intento);
+    } catch {
+      /* siguiente intento */
+    }
   }
+  return null;
 }
 
 const num = (v: unknown, d = 0) => {
@@ -273,18 +350,33 @@ Deno.serve(async (req) => {
 
     const system = modo === "sugerir" ? SYSTEM_SUGERIR : SYSTEM_ANALIZAR;
     const text = modo === "sugerir" ? textoSugerir(body) : textoAnalizar(body);
-    let res: { raw: string; uso: Uso };
-    if (provider === "anthropic") res = await callAnthropic(key, model, system, body, text);
-    else if (provider === "openai") res = await callOpenAI(key, model, system, body, text);
-    else if (provider === "gemini") res = await callGemini(key, model, system, body, text);
-    else return json({ error: `Proveedor no soportado: ${provider}` }, 500);
+    const llamar = (t: string): Promise<Resultado> => {
+      if (provider === "anthropic") return callAnthropic(key, model, system, body, t, modo);
+      if (provider === "openai") return callOpenAI(key, model, system, body, t);
+      return callGemini(key, model, system, body, t);
+    };
+    if (!["anthropic", "openai", "gemini"].includes(provider)) {
+      return json({ error: `Proveedor no soportado: ${provider}` }, 500);
+    }
 
-    console.log(JSON.stringify({
-      evento: "uso_ia", modo, proveedor: provider, modelo: model, foto: Boolean(body.image_base64),
-      tokens_entrada: res.uso.entrada, tokens_salida: res.uso.salida,
-    }));
-
-    const parsed = extractJson(res.raw);
+    // Hasta 2 intentos: si la respuesta llega cortada o mal formada, se pide de nuevo, más breve.
+    let parsed: Record<string, unknown> | null = null;
+    for (let intento = 1; intento <= 2 && !parsed; intento++) {
+      const t = intento === 1 ? text : `${text}\nTu respuesta anterior no se pudo leer. Responde de nuevo, más breve, con la estructura exacta.`;
+      const res = await llamar(t);
+      parsed = res.parsed ?? extractJson(res.raw);
+      console.log(JSON.stringify({
+        evento: "uso_ia", modo, proveedor: provider, modelo: model, foto: Boolean(body.image_base64), intento,
+        tokens_entrada: res.uso.entrada, tokens_salida: res.uso.salida, truncado: Boolean(res.truncado), ok: Boolean(parsed),
+      }));
+      if (parsed && res.truncado && modo === "analizar" && !Array.isArray(parsed.items)) parsed = null;
+      if (!parsed) console.error("Respuesta de la IA no interpretable:", res.truncado ? "(cortada por largo)" : "", res.raw.slice(0, 1500));
+    }
+    if (!parsed) {
+      return json({
+        error: "La IA no pudo entregar un resultado válido. Intente de nuevo o divida la comida en dos registros.",
+      }, 502);
+    }
     return json(modo === "sugerir" ? normalizarSugerencias(parsed) : normalizarAnalisis(parsed));
   } catch (e) {
     console.error("Error en analyze-meal:", e instanceof Error ? e.message : String(e));
