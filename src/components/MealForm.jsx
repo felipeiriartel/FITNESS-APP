@@ -53,7 +53,8 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
   const [guardarFav, setGuardarFav] = useState(false);
   const [estado, setEstado] = useState('editando'); // editando | analizando | guardando
   const [error, setError] = useState(null);
-  const inputRef = useRef(null);
+  const camaraRef = useRef(null);
+  const galeriaRef = useRef(null);
 
   const total = items.reduce(
     (a, it) => ({
@@ -67,6 +68,7 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
 
   async function elegirFoto(e) {
     const file = e.target.files?.[0];
+    e.target.value = ''; // permite volver a elegir la misma foto
     if (!file) return;
     setError(null);
     try {
@@ -218,16 +220,28 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
         {!inicial && conFoto && (foto ? (
           <div className="stack" style={{ gap: 6 }}>
             <img src={foto.preview} alt="Foto de la comida" className="preview-img" />
-            <button className="btn small ghost" onClick={() => setFoto(null)}>Cambiar foto</button>
+            <div className="photo-change">
+              <button className="btn small ghost" disabled={ocupado} onClick={() => camaraRef.current?.click()}>📷 Otra foto</button>
+              <button className="btn small ghost" disabled={ocupado} onClick={() => galeriaRef.current?.click()}>🖼️ De la galería</button>
+            </div>
           </div>
         ) : (
-          <button className="photo-pick" onClick={() => inputRef.current?.click()}>
-            <span className="emoji" aria-hidden="true">📷</span>
-            <b>Tomar o elegir una foto</b>
-            <small>Si hay etiqueta nutricional, fotografíela también</small>
-          </button>
+          <div className="stack" style={{ gap: 6 }}>
+            <div className="photo-picks">
+              <button className="photo-pick" onClick={() => camaraRef.current?.click()}>
+                <span className="emoji" aria-hidden="true">📷</span>
+                <b>Tomar foto</b>
+              </button>
+              <button className="photo-pick" onClick={() => galeriaRef.current?.click()}>
+                <span className="emoji" aria-hidden="true">🖼️</span>
+                <b>Elegir de la galería</b>
+              </button>
+            </div>
+            <small className="muted" style={{ textAlign: 'center' }}>Si hay etiqueta nutricional, fotografíela también</small>
+          </div>
         ))}
-        <input ref={inputRef} type="file" accept="image/*" capture="environment" hidden onChange={elegirFoto} />
+        <input ref={camaraRef} type="file" accept="image/*" capture="environment" hidden onChange={elegirFoto} />
+        <input ref={galeriaRef} type="file" accept="image/*" hidden onChange={elegirFoto} />
 
         {!inicial && (
           <>
