@@ -17,6 +17,7 @@ Es multiusuario: cualquier persona puede crear su cuenta y cada una ve solo sus 
 - **Calendario**: cada día en color según cumplimiento (en meta, leve exceso, exceso, muy bajo o sin registro) y marca de ejercicio.
 - **Resumen semanal**: días registrados, promedio de calorías y proteína, déficit acumulado, baja estimada y cambio real de peso.
 - **Meta adaptativa**: la meta se recalcula sola cada día con su peso actual y, cuando hay datos suficientes, con su gasto real observado.
+- **Recordatorios**: avisos en el teléfono para tomar agua (cuánto lleva y cuánto le falta) y con las calorías y proteína que le quedan para la meta del día, a las horas que cada persona elija.
 - **Exportación**: Excel con todas las hojas (comidas, ejercicio, peso, agua, resumen diario y semanal) y respaldo JSON importable en cualquier instalación.
 
 ## Cómo calcula
@@ -38,6 +39,8 @@ La meta también puede fijarse manualmente en Ajustes; la app sigue mostrando la
 ```
 supabase/migrations/001_init.sql        Tablas, seguridad por usuario (RLS) y bucket de fotos
 supabase/functions/analyze-meal/        Función que llama a la IA (Anthropic, OpenAI o Gemini)
+supabase/functions/send-reminders/      Envía los recordatorios (Web Push con VAPID)
+public/sw.js                            Service worker que muestra las notificaciones
 src/lib/calc.js                         Todos los cálculos (probados en tests/calc.test.js)
 src/pages/                              Hoy, Calendario, Progreso, Ajustes, Acceso
 src/components/                         Formularios, gráfico y componentes de interfaz
@@ -48,7 +51,7 @@ src/components/                         Formularios, gráfico y componentes de i
 ### 1. Supabase
 
 1. Cree un proyecto en [supabase.com](https://supabase.com).
-2. En **SQL Editor**, pegue y ejecute en orden los archivos de `supabase/migrations/` (`001_init.sql` y luego `002_fotos_frecuentes.sql`).
+2. En **SQL Editor**, pegue y ejecute en orden los archivos de `supabase/migrations/` (`001_init.sql`, `002_fotos_frecuentes.sql` y `003_recordatorios.sql`).
 3. En **Authentication → Providers**, deje activo **Email**. Si no quiere confirmar correos al registrarse, desactive *Confirm email*.
 4. En **Authentication → URL Configuration**, ponga en *Site URL* la dirección que le dé Netlify (por ejemplo `https://comidia-xxx.netlify.app`).
 
@@ -67,7 +70,34 @@ supabase secrets set AI_PROVIDER=anthropic AI_API_KEY=su_clave
 
 La clave de la IA queda solo en Supabase; nunca llega al navegador. La función exige que el usuario haya iniciado sesión.
 
-### 3. Prueba local
+### 3. Recordatorios (opcional)
+
+Las notificaciones usan Web Push. Se necesitan un par de claves VAPID y un token para el cron, guardados en **Supabase Vault** (nunca en el repositorio).
+
+1. Genere las claves: `npx web-push generate-vapid-keys --json`. Convierta la privada a formato JWK (P-256, con `x`, `y` y `d`).
+2. En **SQL Editor**:
+   ```sql
+   select vault.create_secret('<clave pública>', 'comidia_vapid_publica');
+   select vault.create_secret('<clave privada en JWK>', 'comidia_vapid_privada');
+   select vault.create_secret('<token largo al azar>', 'comidia_cron_token');
+   ```
+3. Despliegue la función sin verificación de JWT (ella valida el token del cron o la sesión del usuario):
+   `supabase functions deploy send-reminders --no-verify-jwt`
+4. Programe el envío cada 15 minutos:
+   ```sql
+   select cron.schedule('comidia-recordatorios', '*/15 * * * *', $$
+     select net.http_post(
+       url := 'https://<su-proyecto>.supabase.co/functions/v1/send-reminders',
+       headers := jsonb_build_object('Content-Type','application/json','x-cron-token',
+         (select decrypted_secret from vault.decrypted_secrets where name='comidia_cron_token')),
+       body := '{}'::jsonb, timeout_milliseconds := 20000);
+   $$);
+   ```
+5. En Netlify agregue `VITE_VAPID_PUBLIC_KEY` con la clave pública.
+
+Cada persona los activa en **Ajustes → Recordatorios**. En iPhone (iOS 16.4 o más) primero hay que agregar Comidia a la pantalla de inicio y abrirla desde ese ícono.
+
+### 4. Prueba local
 
 ```bash
 cp .env.example .env      # complete VITE_SUPABASE_URL y VITE_SUPABASE_KEY
@@ -78,7 +108,7 @@ npm test                  # pruebas de los cálculos
 
 `VITE_SUPABASE_KEY` es la clave pública (*publishable* o *anon*) de **Project Settings → API**. Nunca use la clave *service_role* en el frontend.
 
-### 4. Netlify
+### 5. Netlify
 
 1. Suba esta carpeta a un repositorio de GitHub y en Netlify elija **Add new site → Import an existing project**.
 2. Netlify detecta `netlify.toml` (comando `npm run build`, carpeta `dist`).

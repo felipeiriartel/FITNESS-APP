@@ -6,6 +6,7 @@ import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
 import { ProfileForm } from '../components/forms.jsx';
 import { ErrorBox, Icon, useToast } from '../components/ui.jsx';
+import Reminders from '../components/Reminders.jsx';
 
 const NOMBRES = {
   weight_logs: 'pesajes', meals: 'comidas', exercise_logs: 'ejercicios', water_logs: 'registros de agua', favorite_meals: 'comidas frecuentes',
@@ -60,6 +61,8 @@ export default function Settings({ email }) {
         <h2 style={{ marginBottom: 12 }}>Perfil y metas</h2>
         <ProfileForm inicial={profile} textoBoton="Guardar cambios" />
       </section>
+
+      <Reminders />
 
       <section className="card stack">
         <h2>Exportar e importar</h2>

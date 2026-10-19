@@ -6,3 +6,9 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# El service worker siempre se revisa de nuevo para que los cambios lleguen al tiro.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"

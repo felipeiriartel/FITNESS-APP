@@ -537,3 +537,19 @@ details summary { cursor: pointer; color: var(--palta); font-weight: 650; }
 .chips.compact { gap: 6px; }
 .chips.compact .chip { min-height: 40px; padding: 6px 12px; font-size: 0.93rem; }
 .chips.compact .chip .emoji { font-size: 1.05rem; }
+
+/* Recordatorios */
+.reminder-head { display: flex; gap: 12px; align-items: flex-start; }
+.reminder-head .emoji { font-size: 1.6rem; line-height: 1.2; }
+.reminder-head b { display: block; font-size: 1.05rem; }
+.reminder-head small { display: block; color: var(--muted); }
+.times { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.time-chip {
+  display: inline-flex; align-items: center; gap: 2px; padding: 4px 4px 4px 12px;
+  background: var(--surface-2); border: 1.5px solid var(--line); border-radius: 14px;
+}
+.time-chip input[type="time"] {
+  border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 1.05rem;
+  font-weight: 700; font-variant-numeric: tabular-nums; min-height: 38px; padding: 0; width: auto;
+}
+.time-chip .icon-btn { width: 34px; height: 34px; }

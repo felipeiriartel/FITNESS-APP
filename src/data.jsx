@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchAll, supabase } from './lib/supabase.js';
 import { calcularMetas, construirContexto } from './lib/calc.js';
 import { todayISO } from './lib/dates.js';
@@ -43,6 +43,19 @@ export function DataProvider({ userId, children }) {
     const metas = raw.profile && ctx.weights.length ? calcularMetas(raw.profile, ctx, hoy) : null;
     return { ...raw, ctx, metas, userId, loading, error, reload };
   }, [raw, userId, loading, error, reload]);
+
+  // Guarda las metas vigentes en el perfil para que los recordatorios usen las mismas cifras que la app.
+  const { metas, profile } = value;
+  const ultimoCache = useRef(null);
+  useEffect(() => {
+    if (!metas || !profile) return;
+    const cache = { meta: Math.round(metas.meta), proteina: Math.round(metas.proteina), agua: Math.round(metas.agua) };
+    const actual = ultimoCache.current ?? profile.metas_cache ?? {};
+    if (cache.meta === actual.meta && cache.proteina === actual.proteina && cache.agua === actual.agua) return;
+    ultimoCache.current = cache;
+    supabase.from('profiles').update({ metas_cache: cache }).eq('user_id', userId)
+      .then(({ error: e }) => e && console.warn('metas_cache:', e.message));
+  }, [metas, profile, userId]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
