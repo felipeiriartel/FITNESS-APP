@@ -125,7 +125,7 @@ function Shell({ email }) {
     <>
       <main className="app">
         <div className="page" key={tab}>
-          {tab === 'hoy' && <Today fecha={fecha} setFecha={setFecha} abrir={abrir} irAProgreso={() => irA('progreso')} />}
+          {tab === 'hoy' && <Today fecha={fecha} setFecha={setFecha} abrir={abrir} irAProgreso={() => irA('progreso')} irAAjustes={() => irA('ajustes')} />}
           {tab === 'calendario' && <CalendarPage abrirDia={abrirDia} />}
           {tab === 'progreso' && <Progress abrir={abrir} />}
           {tab === 'ajustes' && <Settings email={email} />}

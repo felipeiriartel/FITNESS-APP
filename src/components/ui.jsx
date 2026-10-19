@@ -207,6 +207,7 @@ const PATHS = {
   estrella: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z',
   mas: 'M12 5v14M5 12h14',
   menos: 'M5 12h14',
+  campana: 'M6 9a6 6 0 0112 0c0 6 2.5 8 2.5 8h-17S6 15 6 9zM10 20.5a2.2 2.2 0 004 0',
 };
 
 export function Icon({ name, size = 22, filled, stroke = 2, className }) {

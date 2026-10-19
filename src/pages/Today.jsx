@@ -9,8 +9,9 @@ import { useSwipe } from '../lib/useSwipe.js';
 import WaterInput from '../components/WaterInput.jsx';
 import { useFotos } from '../lib/useFotos.js';
 import WeeklyCard from '../components/WeeklyCard.jsx';
+import NotifButton from '../components/NotifButton.jsx';
 
-export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
+export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes }) {
   const { metas, ctx, exercises, water, weights, reload } = useData();
   const toast = useToast();
   const [meals, setMeals] = useState([]);
@@ -62,16 +63,18 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
 
   return (
     <div className="stack" {...swipe}>
-      <header className="page-head">
-        <button className="icon-btn round" onClick={() => irDia(-1)} aria-label="Día anterior"><Icon name="izq" /></button>
+      <header className="page-head today-head">
         <div className="titles">
           <h1 style={{ textTransform: 'capitalize' }}>
             {fecha === hoy ? 'Hoy' : fecha === addDays(hoy, -1) ? 'Ayer' : fromISO(fecha).toLocaleDateString('es-CL', { weekday: 'long' })}
           </h1>
           <small>{fecha === hoy ? formatLargo(fecha) : <button className="link-hoy" onClick={() => irDia(diffHoy)}>{formatCorto(fecha)} · Volver a hoy</button>}</small>
         </div>
-        <button className="icon-btn round" onClick={() => irDia(1)} aria-label="Día siguiente"
-          style={{ visibility: fecha >= hoy ? 'hidden' : 'visible' }}><Icon name="der" /></button>
+        <div className="head-actions">
+          <button className="icon-btn round" onClick={() => irDia(-1)} aria-label="Día anterior"><Icon name="izq" /></button>
+          <button className="icon-btn round" onClick={() => irDia(1)} aria-label="Día siguiente" disabled={fecha >= hoy}><Icon name="der" /></button>
+          <NotifButton irAAjustes={irAAjustes} />
+        </div>
       </header>
 
       <div key={fecha} className={`stack ${dir.current}`}>
