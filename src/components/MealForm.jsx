@@ -186,10 +186,28 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
 
   const ocupado = estado !== 'editando';
 
+  // Botón principal fijo abajo, al alcance del pulgar.
+  let pie = null;
+  if (items.length) {
+    pie = (
+      <button className="btn primary big block" disabled={ocupado} onClick={guardar}>
+        {estado === 'guardando' ? <><Spinner /> Guardando…</> : <>{editar ? 'Guardar cambios' : 'Guardar'} · <span className="num">{fmt(total.kcal)} kcal</span></>}
+      </button>
+    );
+  } else if (!inicial) {
+    pie = (
+      <button className="btn primary big block" disabled={ocupado} onClick={() => analizar(false)}>
+        {estado === 'analizando'
+          ? <><Spinner /> {conFoto ? 'Analizando su plato…' : 'Calculando…'}</>
+          : <><span className="emoji" aria-hidden="true">✨</span> {conFoto ? 'Analizar con IA' : 'Calcular con IA'}</>}
+      </button>
+    );
+  }
+
   return (
-    <Modal title={inicial?.titulo ?? (conFoto ? 'Registrar con foto' : 'Escribir lo que comí')} onClose={() => onClose(false)}>
+    <Modal title={inicial?.titulo ?? (conFoto ? 'Registrar con foto' : 'Escribir lo que comí')} onClose={() => onClose(false)} footer={pie}>
       <div className="stack">
-        <div className="chips" role="radiogroup" aria-label="Tipo de comida">
+        <div className="chips scroll" role="radiogroup" aria-label="Tipo de comida">
           {TIPOS_COMIDA.map((t) => (
             <button key={t.id} role="radio" aria-checked={tipo === t.id} className={`chip${tipo === t.id ? ' on' : ''}`} onClick={() => setTipo(t.id)}>
               <span className="emoji" aria-hidden="true">{t.emoji}</span>{t.label}
@@ -222,11 +240,11 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
             </label>
 
             <div className="stack" style={{ gap: 8 }}>
-              <button className="btn primary big block" disabled={ocupado} onClick={() => analizar(false)}>
-                {estado === 'analizando'
-                  ? <><Spinner /> {conFoto ? 'Analizando su plato…' : 'Calculando…'}</>
-                  : <><span className="emoji" aria-hidden="true">✨</span> {conFoto ? 'Analizar con IA' : 'Calcular con IA'}</>}
-              </button>
+              {items.length > 0 && (
+                <button className="btn block" disabled={ocupado} onClick={() => analizar(false)}>
+                  {estado === 'analizando' ? <><Spinner /> Analizando…</> : <><span className="emoji" aria-hidden="true">✨</span> {resultado ? 'Volver a analizar' : 'Analizar con IA'}</>}
+                </button>
+              )}
               {!items.length && (
                 <div className="row" style={{ justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}>
                   {!conFoto && <button className="btn small ghost" disabled={ocupado} onClick={() => setConFoto(true)}>Agregar una foto</button>}
@@ -283,25 +301,24 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
               Nombre del registro
               <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Almuerzo casero" />
             </label>
-            <div className="item-edit head">
-              <span>Alimento</span><span>kcal</span><span>Prot.</span><span>Carb.</span><span>Grasa</span><span />
-            </div>
             {items.map((it, i) => (
-              <div className="item-edit" key={i}>
-                <input value={it.nombre} placeholder={it.cantidad || 'Alimento'} aria-label="Alimento"
-                  onChange={(e) => editarItem(i, 'nombre', e.target.value)} title={it.cantidad} />
-                <input inputMode="decimal" value={it.kcal} aria-label="Calorías" onChange={(e) => editarItem(i, 'kcal', e.target.value)} />
-                <input inputMode="decimal" value={it.proteina_g} aria-label="Proteína" onChange={(e) => editarItem(i, 'proteina_g', e.target.value)} />
-                <input inputMode="decimal" value={it.carbohidratos_g} aria-label="Carbohidratos" onChange={(e) => editarItem(i, 'carbohidratos_g', e.target.value)} />
-                <input inputMode="decimal" value={it.grasas_g} aria-label="Grasas" onChange={(e) => editarItem(i, 'grasas_g', e.target.value)} />
-                <button className="icon-btn" style={{ width: 34, height: 34 }} aria-label="Quitar alimento" onClick={() => setItems((p) => p.filter((_, j) => j !== i))}>
-                  <Icon name="x" size={16} />
-                </button>
+              <div className="item-card" key={i}>
+                <div className="item-name">
+                  <input value={it.nombre} placeholder="Alimento" aria-label="Alimento"
+                    onChange={(e) => editarItem(i, 'nombre', e.target.value)} />
+                  <button className="icon-btn" aria-label="Quitar alimento" onClick={() => setItems((p) => p.filter((_, j) => j !== i))}>
+                    <Icon name="x" size={18} />
+                  </button>
+                </div>
+                {it.cantidad && <span className="porcion">Porción estimada: {it.cantidad}</span>}
+                <div className="item-nums">
+                  <label>kcal<input inputMode="decimal" value={it.kcal} onChange={(e) => editarItem(i, 'kcal', e.target.value)} onFocus={(e) => e.target.select()} /></label>
+                  <label style={{ color: 'var(--ciruela)' }}>Prot. g<input inputMode="decimal" value={it.proteina_g} onChange={(e) => editarItem(i, 'proteina_g', e.target.value)} onFocus={(e) => e.target.select()} /></label>
+                  <label style={{ color: 'var(--zapallo)' }}>Carb. g<input inputMode="decimal" value={it.carbohidratos_g} onChange={(e) => editarItem(i, 'carbohidratos_g', e.target.value)} onFocus={(e) => e.target.select()} /></label>
+                  <label style={{ color: 'var(--aceite)' }}>Grasa g<input inputMode="decimal" value={it.grasas_g} onChange={(e) => editarItem(i, 'grasas_g', e.target.value)} onFocus={(e) => e.target.select()} /></label>
+                </div>
               </div>
             ))}
-            {items.some((it) => it.cantidad) && (
-              <small>Porciones estimadas: {items.filter((it) => it.cantidad).map((it) => `${it.nombre} (${it.cantidad})`).join(' · ')}</small>
-            )}
             <button className="btn small" onClick={() => setItems((p) => [...p, itemVacio()])}><Icon name="mas" size={18} /> Agregar alimento</button>
             <div className="result-total">
               <div className="kpi"><b className="num">{fmt(total.kcal)}</b><span>kcal</span></div>
@@ -314,9 +331,6 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
               <span>Guardar como comida frecuente{foto ? ' (con su foto)' : ''}</span>
             </label>
             {foto && !guardarFav && <small>La foto solo se usó para el análisis y no quedará guardada.</small>}
-            <button className="btn primary big block" disabled={ocupado} onClick={guardar}>
-              {estado === 'guardando' ? 'Guardando…' : editar ? 'Guardar cambios' : 'Guardar registro'}
-            </button>
             {editar && (
               <button className="btn ghost danger block" disabled={ocupado} onClick={eliminar}>Eliminar comida</button>
             )}

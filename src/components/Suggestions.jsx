@@ -61,7 +61,7 @@ export default function Suggestions({ fecha, onClose, abrir }) {
           <div><b className="num" style={{ color: 'var(--ciruela)' }}>{fmt(restante.proteina_g)} g</b><small>de proteína por cubrir</small></div>
         </div>
 
-        <div className="chips" role="radiogroup" aria-label="Para qué comida">
+        <div className="chips scroll" role="radiogroup" aria-label="Para qué comida">
           {TIPOS_COMIDA.filter((t) => t.id !== 'bebida').map((t) => (
             <button key={t.id} role="radio" aria-checked={tipo === t.id} className={`chip${tipo === t.id ? ' on' : ''}`} onClick={() => setTipo(t.id)}>
               <span className="emoji" aria-hidden="true">{t.emoji}</span>{t.label}

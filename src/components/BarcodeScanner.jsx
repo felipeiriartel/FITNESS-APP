@@ -149,7 +149,11 @@ export default function BarcodeScanner({ fecha, onClose, abrir }) {
   }
 
   return (
-    <Modal title="Código de barras" onClose={onClose}>
+    <Modal title="Código de barras" onClose={onClose} footer={producto && fase === 'producto' ? (
+      <button className="btn primary big block" disabled={ocupado} onClick={registrar}>
+        {ocupado ? <><Spinner /> Guardando…</> : <>Registrar · <span className="num">{fmt(calc?.kcal ?? 0)} kcal</span></>}
+      </button>
+    ) : null}>
       <div className="stack">
         {fase === 'camara' && (
           <>
@@ -217,7 +221,7 @@ export default function BarcodeScanner({ fecha, onClose, abrir }) {
               ¿Cuánto consumió? (g o ml)
               <input inputMode="decimal" value={gramos} onChange={(e) => setGramos(e.target.value)} />
             </label>
-            <div className="chips">
+            <div className="chips scroll">
               {producto.porcionGramos && (
                 <button className="chip" onClick={() => setGramos(String(Math.round(producto.porcionGramos)))}>
                   {producto.porcionTexto || `1 porción (${Math.round(producto.porcionGramos)} g)`}
@@ -235,7 +239,7 @@ export default function BarcodeScanner({ fecha, onClose, abrir }) {
               <div className="kpi"><b className="num" style={{ color: 'var(--aceite)' }}>{fmt(calc.gr)} g</b><span>Grasas</span></div>
             </div>
 
-            <div className="chips" role="radiogroup" aria-label="Tipo de comida">
+            <div className="chips scroll" role="radiogroup" aria-label="Tipo de comida">
               {TIPOS_COMIDA.map((t) => (
                 <button key={t.id} role="radio" aria-checked={tipo === t.id} className={`chip${tipo === t.id ? ' on' : ''}`} onClick={() => setTipo(t.id)}>
                   <span className="emoji" aria-hidden="true">{t.emoji}</span>{t.label}
@@ -247,9 +251,6 @@ export default function BarcodeScanner({ fecha, onClose, abrir }) {
               <span>Guardar como comida frecuente</span>
             </label>
             <ErrorBox>{error}</ErrorBox>
-            <button className="btn primary big block" disabled={ocupado} onClick={registrar}>
-              {ocupado ? <><Spinner /> Guardando…</> : 'Registrar'}
-            </button>
             <button className="btn ghost block" onClick={() => { setProducto(null); setFase('camara'); }}>Escanear otro producto</button>
             <small className="muted" style={{ textAlign: 'center' }}>Datos de Open Food Facts, base abierta mantenida por voluntarios. Verifique con la etiqueta si algo no calza.</small>
           </div>

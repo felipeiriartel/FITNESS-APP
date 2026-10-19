@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useSwipe } from '../lib/useSwipe.js';
 import { ESTADOS, estadoDia } from '../lib/calc.js';
 import { DIAS_CORTOS, MESES, fromISO, toISO, todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
-import { Icon, Pill } from '../components/ui.jsx';
+import { Icon } from '../components/ui.jsx';
 
 export default function CalendarPage({ abrirDia }) {
   const { ctx, metas } = useData();
@@ -40,18 +41,26 @@ export default function CalendarPage({ abrirDia }) {
       const d = new Date(y, m + delta, 1);
       return { y: d.getFullYear(), m: d.getMonth() };
     });
+  const dir = useRef('');
   const esMesActual = `${mes.y}-${String(mes.m + 1).padStart(2, '0')}` === hoy.slice(0, 7);
 
+  const irMes = (delta) => {
+    if (delta > 0 && esMesActual) return;
+    dir.current = delta > 0 ? 'slide-izq' : 'slide-der';
+    mover(delta);
+  };
+  const swipe = useSwipe({ izquierda: () => irMes(1), derecha: () => irMes(-1) });
+
   return (
-    <div className="stack">
+    <div className="stack" {...swipe}>
       <div className="page-head">
-        <button className="icon-btn round" onClick={() => mover(-1)} aria-label="Mes anterior"><Icon name="izq" /></button>
+        <button className="icon-btn round" onClick={() => irMes(-1)} aria-label="Mes anterior"><Icon name="izq" /></button>
         <div className="titles"><h1>{MESES[mes.m]}</h1><small>{mes.y}</small></div>
-        <button className="icon-btn round" onClick={() => mover(1)} aria-label="Mes siguiente" disabled={esMesActual}
+        <button className="icon-btn round" onClick={() => irMes(1)} aria-label="Mes siguiente" disabled={esMesActual}
           style={{ visibility: esMesActual ? 'hidden' : 'visible' }}><Icon name="der" /></button>
       </div>
 
-      <section className="card cal-card">
+      <section key={`${mes.y}-${mes.m}`} className={`card cal-card ${dir.current}`}>
         <div className="cal">
           {DIAS_CORTOS.map((d) => <div key={d} className="cal-head">{d}</div>)}
           {celdas.map((iso, i) => {
@@ -73,14 +82,16 @@ export default function CalendarPage({ abrirDia }) {
         </div>
       </section>
 
-      <div className="legend">
-        {['ok', 'leve', 'exceso', 'bajo', 'sin'].map((e) => <Pill key={e} estado={e}>{ESTADOS[e]}</Pill>)}
-        <span className="pill sin"><span style={{ width: 8, height: 8, borderRadius: 9, background: 'var(--choclo-dark)', display: 'inline-block' }} /> Ejercicio</span>
+      <div className="legend" aria-label="Significado de los colores">
+        {[['ok', 'En meta'], ['leve', 'Leve exceso (≤10%)'], ['exceso', 'Exceso'], ['bajo', 'Muy bajo'], ['sin', 'Sin registro']].map(([e, t]) => (
+          <span key={e} className="ley"><i className={`ley-dot ${e}`} />{t}</span>
+        ))}
+        <span className="ley"><i className="ley-dot ej" />Ejercicio</span>
       </div>
 
       <section className="card">
         <h2 style={{ marginBottom: 10 }}>Resumen del mes</h2>
-        <div className="grid3 resp">
+        <div className="kpi-grid">
           <div className="kpi"><b className="num">{conteo.ok}</b><span>Días en meta</span></div>
           <div className="kpi"><b className="num">{conteo.leve + conteo.exceso}</b><span>Días sobre la meta</span></div>
           <div className="kpi"><b className="num">{conteo.sin + conteo.bajo}</b><span>Sin registro o incompletos</span></div>

@@ -4,7 +4,7 @@ import { EJERCICIOS, NIVELES_ACTIVIDAD, TIPOS_COMIDA, descripcionIntensidad, kca
 import { todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
-import { ErrorBox, Modal, useToast } from './ui.jsx';
+import { ErrorBox, Icon, Modal, useToast } from './ui.jsx';
 import { tipoPorHora } from './MealForm.jsx';
 import { useFotos } from '../lib/useFotos.js';
 
@@ -38,7 +38,7 @@ export function FavoritesPicker({ fecha, onClose }) {
   return (
     <Modal title="Comidas frecuentes" onClose={onClose}>
       <div className="stack">
-        <div className="chips" role="radiogroup" aria-label="Registrar como">
+        <div className="chips scroll" role="radiogroup" aria-label="Registrar como">
           {TIPOS_COMIDA.map((t) => (
             <button key={t.id} role="radio" aria-checked={tipo === t.id} className={`chip${tipo === t.id ? ' on' : ''}`} onClick={() => setTipo(t.id)}>
               <span className="emoji" aria-hidden="true">{t.emoji}</span>{t.label}
@@ -49,7 +49,7 @@ export function FavoritesPicker({ fecha, onClose }) {
         {!favorites.length && (
           <div className="empty">
             <span className="emoji">⭐</span>
-            Aún no tiene comidas frecuentes. Al registrar una comida, marque “Guardar como comida frecuente” o toque la estrella en la lista del día.
+            Aún no tiene comidas frecuentes. Al registrar una comida, marque “Guardar como comida frecuente” antes de guardarla.
           </div>
         )}
         <div className="list">
@@ -73,7 +73,7 @@ export function FavoritesPicker({ fecha, onClose }) {
 }
 
 /* ---------------- Ejercicio ---------------- */
-const MINUTOS_RAPIDOS = [30, 45, 60, 75, 90];
+const MINUTOS_RAPIDOS = [20, 30, 45, 60, 75, 90, 120];
 const TIPOS_PRINCIPALES = ['pesas', 'futbol', 'pichanga', 'correr', 'caminar', 'bicicleta'];
 
 /**
@@ -160,12 +160,16 @@ export function ExerciseForm({ fecha, onClose, existente }) {
   }
 
   return (
-    <Modal title={existente ? 'Editar ejercicio' : 'Registrar ejercicio'} onClose={onClose}>
+    <Modal title={existente ? 'Editar ejercicio' : 'Registrar ejercicio'} onClose={onClose} footer={
+      <button className="btn primary big block" disabled={ocupado} onClick={guardar}>
+        {existente ? 'Guardar cambios' : 'Guardar'} · <span className="num">{fmt(kcal)} kcal</span>
+      </button>
+    }>
       <div className="stack">
         {recientes.length > 0 && (
           <div className="stack" style={{ gap: 6 }}>
             <small className="muted">Repetir uno reciente</small>
-            <div className="chips compact">
+            <div className="chips compact scroll">
               {recientes.map((e) => (
                 <button key={e.id} className="chip" onClick={() => usarReciente(e)}>
                   <span className="emoji" aria-hidden="true">{EJERCICIOS[e.exercise_type]?.emoji ?? '✨'}</span>
@@ -178,26 +182,32 @@ export function ExerciseForm({ fecha, onClose, existente }) {
 
         <div className="stack" style={{ gap: 6 }}>
           <small className="muted">Tipo de ejercicio</small>
-          <div className="chips compact" role="radiogroup" aria-label="Tipo de ejercicio">
+          <div className="type-grid" role="radiogroup" aria-label="Tipo de ejercicio">
             {Object.entries(EJERCICIOS)
               .filter(([id]) => todosLosTipos || TIPOS_PRINCIPALES.includes(id) || id === tipo)
               .map(([id, e]) => (
-                <button key={id} role="radio" aria-checked={tipo === id} className={`chip${tipo === id ? ' on' : ''}`} onClick={() => setTipo(id)}>
+                <button key={id} role="radio" aria-checked={tipo === id} className={tipo === id ? 'on' : ''} onClick={() => setTipo(id)}>
                   <span className="emoji" aria-hidden="true">{e.emoji}</span>{e.label}
                 </button>
               ))}
             {!todosLosTipos && (
-              <button className="chip" onClick={() => setTodosLosTipos(true)}>Más tipos…</button>
+              <button className="mas" onClick={() => setTodosLosTipos(true)}><span className="emoji" aria-hidden="true">＋</span>Más tipos</button>
             )}
           </div>
         </div>
 
-        <div className="stack" style={{ gap: 6 }}>
-          <label className="field" style={{ gap: 6 }}>
-            {tipo === 'futbol' || tipo === 'pichanga' ? 'Minutos que jugó' : 'Duración (minutos)'}
-            <input inputMode="numeric" value={minutos} onChange={(e) => setMinutos(e.target.value.replace(/\D/g, ''))} />
-          </label>
-          <div className="chips compact">
+        <div className="stack" style={{ gap: 8 }}>
+          <span className="field-label">{tipo === 'futbol' || tipo === 'pichanga' ? 'Minutos que jugó' : 'Duración'}</span>
+          <div className="stepper">
+            <button className="btn" aria-label="5 minutos menos" onClick={() => setMinutos(String(Math.max(5, m - 5)))}><Icon name="menos" stroke={2.6} /></button>
+            <div className="valor">
+              <input inputMode="numeric" value={minutos} aria-label="Minutos" onFocus={(e) => e.target.select()}
+                onChange={(e) => setMinutos(e.target.value.replace(/\D/g, '').slice(0, 3))} />
+              <span>min</span>
+            </div>
+            <button className="btn" aria-label="5 minutos más" onClick={() => setMinutos(String(Math.min(600, m + 5)))}><Icon name="mas" stroke={2.6} /></button>
+          </div>
+          <div className="chips compact scroll">
             {MINUTOS_RAPIDOS.map((v) => (
               <button key={v} className={`chip${m === v ? ' on' : ''}`} onClick={() => setMinutos(String(v))}>{v} min</button>
             ))}
@@ -242,9 +252,6 @@ export function ExerciseForm({ fecha, onClose, existente }) {
           (<b className="num">{fmt(Math.round(kcal * 0.75))} kcal</b>), porque tanto las fórmulas como los relojes tienden a sobreestimarlo.
         </div>
         <ErrorBox>{error}</ErrorBox>
-        <button className="btn primary big block" disabled={ocupado} onClick={guardar}>
-          {existente ? 'Guardar cambios' : 'Guardar ejercicio'}
-        </button>
         {existente && <button className="btn ghost danger block" disabled={ocupado} onClick={eliminar}>Eliminar ejercicio</button>}
       </div>
     </Modal>
@@ -279,7 +286,9 @@ export function WeightForm({ fecha = todayISO(), onClose }) {
   }
 
   return (
-    <Modal title="Registrar peso" onClose={onClose}>
+    <Modal title="Registrar peso" onClose={onClose} footer={
+      <button className="btn primary big block" disabled={ocupado} onClick={guardar}>Guardar peso</button>
+    }>
       <div className="stack">
         <label className="field">
           Fecha
@@ -288,16 +297,16 @@ export function WeightForm({ fecha = todayISO(), onClose }) {
         <div className="grid2">
           <label className="field">
             Peso (kg)
-            <input inputMode="decimal" value={peso} onChange={(e) => setPeso(e.target.value)} placeholder="81,0" />
+            <input inputMode="decimal" value={peso} onChange={(e) => setPeso(e.target.value)} placeholder="81,0" autoFocus={!existente}
+              style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 750 }} />
           </label>
           <label className="field">
-            Cintura (cm, opcional)
+            Cintura (cm)
             <input inputMode="decimal" value={cintura} onChange={(e) => setCintura(e.target.value)} placeholder="92" />
           </label>
         </div>
         <ComoMedir />
         <ErrorBox>{error}</ErrorBox>
-        <button className="btn primary big block" disabled={ocupado} onClick={guardar}>Guardar peso</button>
       </div>
     </Modal>
   );
@@ -428,7 +437,7 @@ export function ProfileForm({ inicial, conPeso, onSaved, textoBoton = 'Guardar' 
         <input inputMode="decimal" value={f.usual_exercise_hours_week} onChange={set('usual_exercise_hours_week')} placeholder="Ej: 6" />
         <small>Se usa al inicio; con 4 semanas de registros, la app calcula con su ejercicio real.</small>
       </label>
-      <div className="grid2">
+      <div className="grid2 resp-1">
         <label className="field">
           Ritmo de baja deseado
           <select value={f.goal_rate_kg_week} onChange={set('goal_rate_kg_week')}>

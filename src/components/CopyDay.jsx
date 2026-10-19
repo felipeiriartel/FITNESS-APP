@@ -64,9 +64,15 @@ export default function CopyDay({ fecha, onClose }) {
   ];
 
   return (
-    <Modal title="Copiar comidas de otro día" onClose={onClose}>
+    <Modal title="Copiar comidas de otro día" onClose={onClose} footer={
+      <button className="btn primary big block" disabled={ocupado || !seleccion.length} onClick={copiar}>
+        {ocupado ? <><Spinner /> Copiando…</> : seleccion.length
+          ? `Copiar ${seleccion.length} ${seleccion.length === 1 ? 'comida' : 'comidas'} · ${fmt(total)} kcal`
+          : 'Elija al menos una comida'}
+      </button>
+    }>
       <div className="stack">
-        <div className="chips">
+        <div className="chips scroll">
           {atajos.map((a) => (
             <button key={a.d} className={`chip${origen === a.d ? ' on' : ''}`} onClick={() => setOrigen(a.d)}>{a.label}</button>
           ))}
@@ -92,11 +98,6 @@ export default function CopyDay({ fecha, onClose }) {
           </div>
         )}
         <ErrorBox>{error}</ErrorBox>
-        <button className="btn primary big block" disabled={ocupado || !seleccion.length} onClick={copiar}>
-          {ocupado ? <><Spinner /> Copiando…</> : seleccion.length
-            ? `Copiar ${seleccion.length} ${seleccion.length === 1 ? 'comida' : 'comidas'} (${fmt(total)} kcal)`
-            : 'Elija al menos una comida'}
-        </button>
       </div>
     </Modal>
   );

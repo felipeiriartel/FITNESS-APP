@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { diffDays, formatCorto } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 
@@ -5,13 +6,22 @@ import { fmt } from '../lib/format.js';
  * Gráfico de líneas simple en SVG.
  * series: [{ name, color, points: [{ date, value }], dots?: boolean, line?: boolean }]
  */
-export default function LineChart({ series, height = 200, unit = '', decimals = 1 }) {
+export default function LineChart({ series, height = 190, unit = '', decimals = 1 }) {
+  // El ancho real del contenedor mantiene el texto legible en el celular.
+  const caja = useRef(null);
+  const [W, setW] = useState(340);
+  useEffect(() => {
+    const el = caja.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([e]) => setW(Math.max(240, Math.round(e.contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const all = series.flatMap((s) => s.points);
   if (all.length < 2) return <p className="muted">Se necesitan al menos dos registros para graficar.</p>;
 
-  const W = 600;
   const H = height;
-  const pad = { l: 44, r: 12, t: 12, b: 26 };
+  const pad = { l: 40, r: 8, t: 10, b: 24 };
   const fechas = all.map((p) => p.date).sort();
   const d0 = fechas[0];
   const span = Math.max(1, diffDays(d0, fechas[fechas.length - 1]));
@@ -27,6 +37,7 @@ export default function LineChart({ series, height = 200, unit = '', decimals = 
   const ticks = [0, 1, 2, 3].map((i) => min + ((max - min) * i) / 3);
 
   return (
+    <div ref={caja}>
     <svg className="chart" viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
       aria-label={series.map((s) => s.name).join(', ')}>
       {ticks.map((t) => (
@@ -47,7 +58,7 @@ export default function LineChart({ series, height = 200, unit = '', decimals = 
             )}
             {s.dots &&
               pts.map((p) => (
-                <circle key={p.date} cx={x(p.date)} cy={y(p.value)} r="3.2" fill={s.color} opacity="0.55">
+                <circle key={p.date} cx={x(p.date)} cy={y(p.value)} r="3" fill={s.color} opacity="0.55">
                   <title>{`${formatCorto(p.date)}: ${fmt(p.value, decimals)} ${unit}`}</title>
                 </circle>
               ))}
@@ -55,5 +66,6 @@ export default function LineChart({ series, height = 200, unit = '', decimals = 
         );
       })}
     </svg>
+    </div>
   );
 }

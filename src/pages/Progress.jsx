@@ -9,12 +9,33 @@ import { ComoMedir } from '../components/forms.jsx';
 import { Icon } from '../components/ui.jsx';
 import WeeklyCard from '../components/WeeklyCard.jsx';
 
-const RANGOS = { 30: '30 días', 90: '90 días', 365: '1 año', 0: 'Todo' };
+const RANGOS = { 30: '1 mes', 90: '3 meses', 365: '1 año', 0: 'Todo' };
+const SECCIONES = [
+  { id: 'semana', label: 'Semana' },
+  { id: 'peso', label: 'Peso' },
+  { id: 'meta', label: 'Meta' },
+];
+const leerSeccion = () => {
+  try {
+    return sessionStorage.getItem('comidia-progreso') || 'semana';
+  } catch {
+    return 'semana';
+  }
+};
 
 export default function Progress({ abrir }) {
   const { metas, ctx, weights, profile, reload } = useData();
   const [rango, setRango] = useState(90);
   const [verTodo, setVerTodo] = useState(false);
+  const [seccion, setSeccionState] = useState(leerSeccion);
+  const setSeccion = (id) => {
+    setSeccionState(id);
+    try {
+      sessionStorage.setItem('comidia-progreso', id);
+    } catch {
+      /* sin almacenamiento */
+    }
+  };
   const hoy = todayISO();
   const desde = rango ? addDays(hoy, -rango) : '0000-01-01';
 
@@ -43,22 +64,32 @@ export default function Progress({ abrir }) {
     <div className="stack">
       <header className="page-head">
         <h1>Progreso</h1>
-        <button className="btn small primary" onClick={() => abrir('peso')}>⚖️ Registrar peso</button>
+        <button className="btn small primary" onClick={() => abrir('peso')}>⚖️ Peso</button>
       </header>
 
+      <div className="seg sticky" role="tablist" aria-label="Secciones de progreso">
+        {SECCIONES.map((x) => (
+          <button key={x.id} role="tab" aria-selected={seccion === x.id} className={seccion === x.id ? 'on' : ''}
+            onClick={() => { setSeccion(x.id); window.scrollTo({ top: 0 }); }}>{x.label}</button>
+        ))}
+      </div>
+
+      {seccion === 'semana' && <>
       <WeeklyCard semana="pasada" />
       <WeeklyCard semana="actual" />
+      </>}
 
+      {seccion === 'peso' && <>
       <section className="card stack">
-        <div className="grid3">
-          <div className="kpi"><b className="num">{fmtKg(metas.peso)}</b><span>Peso tendencia (prom. 7 días)</span></div>
+        <div className="kpi-grid">
+          <div className="kpi"><b className="num">{fmtKg(metas.peso)}</b><span>Peso tendencia (7 días)</span></div>
           <div className="kpi"><b className="num" style={{ color: cambioTotal < 0 ? 'var(--palta)' : undefined }}>{fmtSigno(cambioTotal)} kg</b><span>Desde el inicio</span></div>
           <div className="kpi">
             <b className="num">{a.disponible ? `${fmtSigno(a.pendienteKgSemana, 2)} kg` : '—'}</b>
-            <span>Ritmo real por semana (últ. 4 sem.)</span>
+            <span>Ritmo por semana (4 sem.)</span>
           </div>
         </div>
-        <div className="seg">
+        <div className="seg small">
           {Object.entries(RANGOS).map(([k, v]) => (
             <button key={k} className={rango === Number(k) ? 'on' : ''} onClick={() => setRango(Number(k))}>{v}</button>
           ))}
@@ -79,7 +110,9 @@ export default function Progress({ abrir }) {
         )}
         <ComoMedir />
       </section>
+      </>}
 
+      {seccion === 'meta' && <>
       <section className="card stack">
         <h2>Gasto y meta</h2>
         <table className="table">
@@ -114,17 +147,19 @@ export default function Progress({ abrir }) {
         {metas.ritmoLimitado && <div className="alert warn">El ritmo elegido supera el 1% de su peso por semana; se limitó a {fmt(metas.ritmo, 2)} kg.</div>}
         {metas.manual && <div className="alert warn">Su meta está en modo manual, por lo que no considera su ejercicio ni su avance real. Puede cambiarla a automática en Ajustes.</div>}
         {metas.bajoMinimo && <div className="alert warn">Su meta manual está bajo el mínimo recomendado ({fmt(metas.minimo)} kcal).</div>}
-        <div className="grid3">
+        <div className="kpi-grid">
           <div className="kpi"><b className="num">{fmt(metas.proteina)} g</b><span>Proteína/día</span></div>
           <div className="kpi"><b className="num">{fmt(metas.carbos)} g</b><span>Carbohidratos/día</span></div>
           <div className="kpi"><b className="num">{fmt(metas.grasa)} g</b><span>Grasas/día</span></div>
         </div>
       </section>
+      </>}
 
+      {seccion === 'semana' && (
       <section className="card stack">
-        <h2>Resumen semanal</h2>
+        <h2>Semanas anteriores</h2>
         <div className="scroll-x">
-          <table className="table">
+          <table className="table fija">
             <thead>
               <tr>
                 <th>Semana</th><th>Días reg.</th><th>En meta</th><th>kcal prom.</th><th>Prot. prom.</th>
@@ -155,7 +190,9 @@ export default function Progress({ abrir }) {
           el ajuste adaptativo corrige la meta.
         </small>
       </section>
+      )}
 
+      {seccion === 'peso' && (
       <section className="card">
         <h2 style={{ marginBottom: 8 }}>Historial de pesajes</h2>
         <div className="list">
@@ -173,7 +210,7 @@ export default function Progress({ abrir }) {
           </button>
         )}
       </section>
-
+      )}
     </div>
   );
 }

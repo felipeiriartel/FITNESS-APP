@@ -69,10 +69,10 @@ export default function Settings({ email }) {
         <p className="muted">
           Descargue todos sus datos en Excel para revisarlos, o un respaldo JSON para trasladarlos a otra cuenta o a otra instalación de la app.
         </p>
-        <div className="row wrap">
-          <button className="btn small" disabled={ocupado} onClick={() => ejecutar(async () => (await exp()).exportarExcel(userId, ctx, metas), '📊 Excel descargado')}>Descargar Excel</button>
-          <button className="btn small" disabled={ocupado} onClick={() => ejecutar(async () => (await exp()).exportarJSON(userId), '💾 Respaldo descargado')}>Descargar respaldo JSON</button>
-          <button className="btn small" disabled={ocupado} onClick={() => fileRef.current?.click()}>Importar respaldo</button>
+        <div className="stack" style={{ gap: 8 }}>
+          <button className="btn block" disabled={ocupado} onClick={() => ejecutar(async () => (await exp()).exportarExcel(userId, ctx, metas), '📊 Excel descargado')}>📊 Descargar Excel</button>
+          <button className="btn block" disabled={ocupado} onClick={() => ejecutar(async () => (await exp()).exportarJSON(userId), '💾 Respaldo descargado')}>💾 Descargar respaldo</button>
+          <button className="btn block ghost" disabled={ocupado} onClick={() => fileRef.current?.click()}>Importar respaldo</button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={importar} />
         </div>
         <ErrorBox>{error}</ErrorBox>

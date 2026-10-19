@@ -95,7 +95,7 @@ function Shell({ email }) {
   }
   if (!profile || !weights.length || !metas) {
     return (
-      <div className="app page">
+      <div className="app solo page">
         <div className="stack">
           <div className="brand"><img src="/icon.svg" alt="" /><h1 className="welcome-title">Bienvenido a Comidia</h1></div>
           <p className="muted">Con estos datos calculamos su gasto diario y su meta de calorías y proteína. Puede cambiarlos cuando quiera.</p>

@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { EJERCICIOS, ESTADOS, FACTOR_EJERCICIO, TIPOS_COMIDA, estadoDia, gastoDelDia, racha } from '../lib/calc.js';
-import { addDays, formatLargo, fromISO, todayISO } from '../lib/dates.js';
+import { addDays, formatCorto, formatLargo, fromISO, todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
 import { Bar, Icon, Macro, Pill, Ring, useToast } from '../components/ui.jsx';
+import { useSwipe } from '../lib/useSwipe.js';
 import WaterInput from '../components/WaterInput.jsx';
 import { useFotos } from '../lib/useFotos.js';
 import WeeklyCard from '../components/WeeklyCard.jsx';
 
 export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
-  const { metas, ctx, exercises, water, weights, userId, reload } = useData();
+  const { metas, ctx, exercises, water, weights, reload } = useData();
   const toast = useToast();
   const [meals, setMeals] = useState([]);
   const hoy = todayISO();
@@ -39,33 +40,17 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
   const pesoDia = weights.find((w) => w.log_date === fecha);
   const r = racha(ctx.intakeByDate, hoy);
   const esLunes = new Date().getDay() === 1;
+  const diffHoy = Math.round((fromISO(hoy) - fromISO(fecha)) / 86400000);
 
-  async function borrarComida(m) {
-    if (!confirm(`¿Eliminar "${m.description}"?`)) return;
-    const { error } = await supabase.from('meals').delete().eq('id', m.id);
-    if (error) return toast(error.message, 'error');
-    if (m.photo_path) await supabase.storage.from('meal-photos').remove([m.photo_path]);
-    toast('Registro eliminado');
-    reload();
-  }
-
-  async function guardarFavorita(m) {
-    const { error } = await supabase.from('favorite_meals').insert({
-      user_id: userId, name: m.description, meal_type: m.meal_type, kcal: m.kcal,
-      protein_g: m.protein_g, carbs_g: m.carbs_g, fat_g: m.fat_g, items: m.items,
-    });
-    if (error) return toast(error.message, 'error');
-    toast('⭐ Guardada en comidas frecuentes');
-    reload();
-  }
-
-  async function borrarEjercicio(e) {
-    if (!confirm('¿Eliminar este ejercicio?')) return;
-    const { error } = await supabase.from('exercise_logs').delete().eq('id', e.id);
-    if (error) return toast(error.message, 'error');
-    toast('Ejercicio eliminado');
-    reload();
-  }
+  // Deslizar a la derecha: día anterior. A la izquierda: día siguiente (hasta hoy).
+  const dir = useRef('');
+  const irDia = (delta) => {
+    const nuevo = addDays(fecha, delta);
+    if (nuevo > hoy) return;
+    dir.current = delta > 0 ? 'slide-izq' : 'slide-der';
+    setFecha(nuevo);
+  };
+  const swipe = useSwipe({ izquierda: () => irDia(1), derecha: () => irDia(-1) });
 
   async function deshacerAgua() {
     const ultimo = water.filter((w) => w.log_date === fecha).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
@@ -76,44 +61,54 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
   }
 
   return (
-    <div className="stack">
+    <div className="stack" {...swipe}>
       <header className="page-head">
-        <button className="icon-btn round" onClick={() => setFecha(addDays(fecha, -1))} aria-label="Día anterior"><Icon name="izq" /></button>
+        <button className="icon-btn round" onClick={() => irDia(-1)} aria-label="Día anterior"><Icon name="izq" /></button>
         <div className="titles">
           <h1 style={{ textTransform: 'capitalize' }}>
             {fecha === hoy ? 'Hoy' : fecha === addDays(hoy, -1) ? 'Ayer' : fromISO(fecha).toLocaleDateString('es-CL', { weekday: 'long' })}
           </h1>
-          <small>{formatLargo(fecha)}</small>
+          <small>{fecha === hoy ? formatLargo(fecha) : <button className="link-hoy" onClick={() => irDia(diffHoy)}>{formatCorto(fecha)} · Volver a hoy</button>}</small>
         </div>
-        <button className="icon-btn round" onClick={() => setFecha(addDays(fecha, 1))} aria-label="Día siguiente"
+        <button className="icon-btn round" onClick={() => irDia(1)} aria-label="Día siguiente"
           style={{ visibility: fecha >= hoy ? 'hidden' : 'visible' }}><Icon name="der" /></button>
       </header>
 
-      {fecha === hoy && r.actual > 0 && (
-        <div className="streak" role="status">
-          <span aria-hidden="true">🔥</span>
-          <b className="num">{r.actual} {r.actual === 1 ? 'día' : 'días'}</b> registrando seguidos
-          {!r.hoyRegistrado && <small> · registre algo hoy para mantener la racha</small>}
-          {r.mejor > r.actual && <small> · récord: {r.mejor}</small>}
-        </div>
-      )}
-
-
+      <div key={fecha} className={`stack ${dir.current}`}>
       <section className="hero" aria-label="Resumen de calorías">
-        <Ring value={consumo.kcal} max={metas.meta} estado={estado === 'sin' ? 'ok' : estado}>
-          <span className="value num" style={{ color: restante < 0 ? 'var(--aji)' : undefined }}>
-            {fmt(Math.abs(restante))}
-          </span>
-          <span className="label">{restante < 0 ? 'kcal sobre la meta' : 'kcal disponibles'}</span>
-        </Ring>
-        <Pill estado={estado}>{ESTADOS[estado]}</Pill>
+        <div className="hero-top">
+          {fecha === hoy && r.actual > 0 ? (
+            <span className={`streak-badge${r.hoyRegistrado ? '' : ' pendiente'}`}
+              title={r.hoyRegistrado ? `Récord: ${r.mejor} días` : 'Registre algo hoy para mantener la racha'}>
+              <span aria-hidden="true">🔥</span>
+              <span className="num">{r.actual} {r.actual === 1 ? 'día' : 'días'}</span>
+              {!r.hoyRegistrado && <span style={{ fontWeight: 600 }}>· registre hoy</span>}
+            </span>
+          ) : <span />}
+          <Pill estado={estado}>{ESTADOS[estado]}</Pill>
+        </div>
+
+        <div className="hero-main">
+          <Ring value={consumo.kcal} max={metas.meta} estado={estado === 'sin' ? 'ok' : estado}>
+            <span className="value num" style={{ color: restante < 0 ? 'var(--aji)' : undefined }}>
+              {fmt(Math.abs(restante))}
+            </span>
+            <span className="label">{restante < 0 ? 'kcal sobre la meta' : 'kcal disponibles'}</span>
+          </Ring>
+          <div className="hero-side">
+            <div className="stat-row"><span>Consumido</span><b className="num">{fmt(consumo.kcal)}</b></div>
+            <div className="stat-row"><span>Meta</span><b className="num">{fmt(metas.meta)}</b></div>
+            <div className="stat-row"><span>Gasto</span><b className="num">{fmt(gasto)}</b></div>
+            {extraEjercicio > 0 && (
+              <div className="stat-row ej"><span>Ejercicio</span><b className="num">+{fmt(extraEjercicio)}</b></div>
+            )}
+          </div>
+        </div>
+
         <div className="day-balance">
-          {extraEjercicio > 0 && (
-            <span><span aria-hidden="true">🏋️</span> Ejercicio {fecha === hoy ? 'de hoy' : 'del día'}: <b className="num">+{fmt(extraEjercicio)} kcal</b> de gasto</span>
-          )}
           {fecha === hoy || !consumo.kcal ? (
             <span className={previsto > 0 ? 'deficit' : 'superavit'}>
-              Si llega a la meta, su déficit de hoy será de <b className="num">{fmt(Math.max(0, previsto))} kcal</b>
+              Si llega a la meta, su déficit {fecha === hoy ? 'de hoy' : 'del día'} será de <b className="num">{fmt(Math.max(0, previsto))} kcal</b>
             </span>
           ) : (
             <span className={balance < 0 ? 'deficit' : 'superavit'}>
@@ -121,37 +116,30 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
             </span>
           )}
         </div>
-        <div className="hero-stats">
-          <div className="stat"><b className="num">{fmt(consumo.kcal)}</b><span>Consumido</span></div>
-          <div className="stat"><b className="num">{fmt(metas.meta)}</b><span>Meta</span></div>
-          <div className="stat"><b className="num">{fmt(gasto)}</b><span>Gasto estimado</span></div>
+
+        <div className="hero-macros">
+          <Macro nombre="Proteína" value={consumo.protein_g} target={metas.proteina} color="var(--ciruela)" />
+          <Macro nombre="Carbos" value={consumo.carbs_g} target={metas.carbos} color="var(--zapallo)" />
+          <Macro nombre="Grasas" value={consumo.fat_g} target={metas.grasa} color="var(--aceite)" />
         </div>
       </section>
 
-      <div className="macros">
-        <Macro nombre="Proteína" value={consumo.protein_g} target={metas.proteina} color="var(--ciruela)" />
-        <Macro nombre="Carbohidratos" value={consumo.carbs_g} target={metas.carbos} color="var(--zapallo)" />
-        <Macro nombre="Grasas" value={consumo.fat_g} target={metas.grasa} color="var(--aceite)" />
-      </div>
-
-      <button className="btn primary big block" onClick={() => abrir('comida')}>
-        <span className="emoji">📷</span> Registrar comida con foto
-      </button>
-      <div className="quick-row">
+      <div className="log-grid">
+        <button className="btn primary" onClick={() => abrir('comida')}><span className="emoji" aria-hidden="true">📷</span>Foto</button>
         <button className="btn" onClick={() => abrir('texto')}><span className="emoji" aria-hidden="true">✍️</span>Escribir</button>
         <button className="btn" onClick={() => abrir('codigo')}><span className="emoji" aria-hidden="true">🔲</span>Código</button>
         <button className="btn" onClick={() => abrir('favoritas')}><span className="emoji" aria-hidden="true">⭐</span>Frecuente</button>
       </div>
-      <button className="btn block" onClick={() => abrir('sugerir')}>
+      <button className="btn slim block" onClick={() => abrir('sugerir')}>
         <span className="emoji" aria-hidden="true">💡</span> ¿Qué puedo comer ahora?
       </button>
 
       {fecha === hoy && esLunes && <WeeklyCard semana="pasada" compacto onVerMas={irAProgreso} />}
 
       <section className="card">
-        <div className="card-head">
+        <div className="card-head" style={{ marginBottom: 4 }}>
           <h2>Comidas</h2>
-          <button className="btn small" onClick={() => abrir('copiar')}>📋 Copiar de otro día</button>
+          {meals.length > 0 && <span className="num muted" style={{ fontWeight: 700 }}>{fmt(consumo.kcal)} kcal</span>}
         </div>
         {!meals.length && (
           <div className="empty">
@@ -159,7 +147,6 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
             Aún no hay comidas este día. Tome una foto de su plato para empezar.
           </div>
         )}
-        {meals.length > 0 && <small className="muted">Toque una comida para editarla.</small>}
         {TIPOS_COMIDA.map((t) => {
           const grupo = meals.filter((m) => m.meal_type === t.id);
           if (!grupo.length) return null;
@@ -167,7 +154,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
             <div key={t.id} className="group">
               <div className="group-title">
                 <span><span aria-hidden="true">{t.emoji}</span>{t.label}</span>
-                <span className="num muted">{fmt(grupo.reduce((s, m) => s + m.kcal, 0))} kcal</span>
+                <span className="num">{fmt(grupo.reduce((s, m) => s + m.kcal, 0))} kcal</span>
               </div>
               <div className="list">
                 {grupo.map((m) => (
@@ -180,26 +167,22 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
                       )}
                       <span className="grow">
                         <span className="item-title">{m.description}</span>
-                        <span className="tags">
-                          <span className="tag p">P {fmt(m.protein_g)} g</span>
-                          <span className="tag c">C {fmt(m.carbs_g)} g</span>
-                          <span className="tag g">G {fmt(m.fat_g)} g</span>
+                        <span className="macro-line num">
+                          <span className="p">P {fmt(m.protein_g)}</span> · <span className="c">C {fmt(m.carbs_g)}</span> · <span className="g">G {fmt(m.fat_g)}</span> g
                         </span>
                       </span>
+                      <span className="item-kcal num">{fmt(m.kcal)}<small>kcal</small></span>
+                      <Icon name="der" size={18} className="chev" />
                     </button>
-                    <div className="item-side">
-                      <span className="item-kcal num">{fmt(m.kcal)}</span>
-                      <span className="item-actions">
-                        <button className="icon-btn" title="Guardar como frecuente" aria-label="Guardar como frecuente" onClick={() => guardarFavorita(m)}><Icon name="estrella" size={18} /></button>
-                        <button className="icon-btn" title="Eliminar" aria-label="Eliminar" onClick={() => borrarComida(m)}><Icon name="basura" size={18} /></button>
-                      </span>
-                    </div>
                   </div>
                 ))}
               </div>
             </div>
           );
         })}
+        <div className={meals.length ? 'card-foot' : undefined}>
+          <button className="btn small ghost block" onClick={() => abrir('copiar')}>📋 Copiar comidas de otro día</button>
+        </div>
       </section>
 
       <section className="card stack">
@@ -216,7 +199,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
       <section className="card">
         <div className="card-head">
           <div className="section-title"><span className="emoji" aria-hidden="true">🏋️</span><h2>Ejercicio</h2></div>
-          <button className="btn small" onClick={() => abrir('ejercicio')}>Agregar</button>
+          <button className="btn small" onClick={() => abrir('ejercicio')}><Icon name="mas" size={18} /> Agregar</button>
         </div>
         {!ejerciciosDia.length && <p className="muted">Sin ejercicio registrado este día.</p>}
         <div className="list">
@@ -228,9 +211,9 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
                   <span className="item-title">{EJERCICIOS[e.exercise_type]?.label ?? e.exercise_type}</span>
                   <small>{e.duration_min} min, {e.intensity === 'baja' ? 'suave' : e.intensity === 'alta' ? 'intensa' : 'moderada'}{e.description ? `. ${e.description}` : ''}</small>
                 </span>
+                <span className="item-kcal num">{fmt(e.kcal_est)}<small>kcal</small></span>
+                <Icon name="der" size={18} className="chev" />
               </button>
-              <span className="item-kcal num">{fmt(e.kcal_est)}</span>
-              <button className="icon-btn" title="Eliminar" aria-label="Eliminar ejercicio" onClick={() => borrarEjercicio(e)}><Icon name="basura" size={19} /></button>
             </div>
           ))}
         </div>
@@ -246,6 +229,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
         </div>
         <button className="btn small" onClick={() => abrir('peso')}>{pesoDia ? 'Editar' : 'Registrar'}</button>
       </section>
+      </div>
     </div>
   );
 }
