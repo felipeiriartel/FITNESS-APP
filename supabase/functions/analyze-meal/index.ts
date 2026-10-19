@@ -178,9 +178,11 @@ async function callAnthropic(key: string, model: string, system: string, b: Body
     body: JSON.stringify({
       model,
       max_tokens: 4096,
-      system: `${system}\n\nEntrega el resultado llamando a la herramienta ${tool.name}.`,
+      system: `${system}\n\nEntrega el resultado llamando siempre a la herramienta ${tool.name}, sin texto adicional.`,
       tools: [tool],
-      tool_choice: { type: "tool", name: tool.name },
+      // El modelo actual no acepta forzar la herramienta (type "tool"/"any"); se usa "auto"
+      // y el sistema le pide llamarla. Si responde en texto, se lee el JSON igual (extractJson).
+      tool_choice: { type: "auto" },
       messages: [{ role: "user", content }],
     }),
   });
