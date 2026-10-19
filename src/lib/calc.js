@@ -14,16 +14,44 @@ export const NIVELES_ACTIVIDAD = {
 };
 
 // Valores MET aproximados (Compendio de Actividades Físicas).
+// "futbol" es el partido en cancha grande; se conserva el id para los registros antiguos.
 export const EJERCICIOS = {
   pesas: { emoji: '🏋️', label: 'Pesas / fuerza', met: { baja: 3.5, moderada: 5, alta: 6 } },
-  futbol: { emoji: '⚽', label: 'Fútbol', met: { baja: 6, moderada: 7, alta: 10 } },
+  futbol: { emoji: '⚽', label: 'Fútbol (partido)', met: { baja: 7, moderada: 8.5, alta: 10 } },
+  pichanga: { emoji: '🥅', label: 'Futbolito / pichanga', met: { baja: 5.5, moderada: 7, alta: 8.5 } },
   correr: { emoji: '🏃', label: 'Correr', met: { baja: 7, moderada: 9, alta: 11.5 } },
   caminar: { emoji: '🚶', label: 'Caminar', met: { baja: 2.8, moderada: 3.5, alta: 5 } },
   bicicleta: { emoji: '🚴', label: 'Bicicleta', met: { baja: 5.5, moderada: 7.5, alta: 10 } },
+  spinning: { emoji: '🚲', label: 'Spinning', met: { baja: 5.5, moderada: 7, alta: 9.5 } },
+  cardio: { emoji: '🫀', label: 'Elíptica / máquinas', met: { baja: 5, moderada: 6.5, alta: 8 } },
+  hiit: { emoji: '⚡', label: 'HIIT / funcional', met: { baja: 5.5, moderada: 8, alta: 10 } },
   natacion: { emoji: '🏊', label: 'Natación', met: { baja: 6, moderada: 8, alta: 10 } },
-  cardio: { emoji: '🫀', label: 'Cardio / máquinas', met: { baja: 5, moderada: 7, alta: 9 } },
+  raqueta: { emoji: '🎾', label: 'Tenis / pádel', met: { baja: 5, moderada: 6.5, alta: 8 } },
+  basquetbol: { emoji: '🏀', label: 'Básquetbol', met: { baja: 6, moderada: 7, alta: 8 } },
+  combate: { emoji: '🥊', label: 'Boxeo / artes marciales', met: { baja: 5.5, moderada: 7.5, alta: 10 } },
+  baile: { emoji: '💃', label: 'Baile', met: { baja: 4.5, moderada: 6, alta: 7.5 } },
+  yoga: { emoji: '🧘', label: 'Yoga / pilates', met: { baja: 2.5, moderada: 3, alta: 4 } },
   otro: { emoji: '✨', label: 'Otro', met: { baja: 3, moderada: 5, alta: 7 } },
 };
+
+/** Descripción de cada intensidad. La prueba del habla sirve para casi todo; las pesas tienen la suya. */
+export function descripcionIntensidad(tipo) {
+  if (tipo === 'pesas') {
+    return {
+      baja: 'Liviano o técnica, descansos largos',
+      moderada: 'Series exigentes, descansos de 1 a 2 min',
+      alta: 'Cerca del fallo o en circuito, descansos cortos',
+    };
+  }
+  if (tipo === 'yoga') {
+    return { baja: 'Relajado, estiramientos', moderada: 'Posturas sostenidas', alta: 'Flujo continuo, transpira' };
+  }
+  return {
+    baja: 'Puede conversar sin problema',
+    moderada: 'Puede hablar, pero en frases cortas',
+    alta: 'Casi no puede hablar',
+  };
+}
 
 export const TIPOS_COMIDA = [
   { id: 'desayuno', label: 'Desayuno', emoji: '🍳' },
@@ -283,4 +311,40 @@ export function construirContexto({ weights, meals, exercises, water }) {
     ...exercises.map((e) => e.log_date),
   ].sort();
   return { weights: sortedWeights, intakeByDate, exerciseByDate, waterByDate, inicioISO: fechas[0] ?? null };
+}
+
+
+/** Días seguidos con al menos una comida registrada. Si hoy aún no registra, cuenta desde ayer. */
+export function racha(intakeByDate, hoyISO) {
+  const registrado = (d) => (intakeByDate.get(d)?.kcal ?? 0) > 0;
+  let dia = registrado(hoyISO) ? hoyISO : addDays(hoyISO, -1);
+  let actual = 0;
+  while (registrado(dia)) {
+    actual++;
+    dia = addDays(dia, -1);
+  }
+  const fechas = [...intakeByDate.keys()].filter(registrado).sort();
+  let mejor = 0;
+  let corrida = 0;
+  let previa = null;
+  for (const f of fechas) {
+    corrida = previa && diffDays(previa, f) === 1 ? corrida + 1 : 1;
+    mejor = Math.max(mejor, corrida);
+    previa = f;
+  }
+  return { actual, mejor: Math.max(mejor, actual), hoyRegistrado: registrado(hoyISO) };
+}
+
+/** Análisis de una semana: déficit, baja esperada según el déficit y cambio real de peso. */
+export function analisisSemana(lunesISO, ctx, metas, hoyISO) {
+  const s = resumenSemana(lunesISO, ctx, metas, hoyISO);
+  const esperadaG = Math.round(s.perdidaEstimada * 1000); // positivo = debería haber bajado
+  const realG = s.cambioReal != null ? Math.round(-s.cambioReal * 1000) : null; // positivo = bajó
+  let veredicto = 'sin-datos';
+  if (s.diasRegistrados < 3) veredicto = 'pocos-registros';
+  else if (realG == null) veredicto = 'sin-peso';
+  else if (Math.abs(realG - esperadaG) <= 300) veredicto = 'segun-lo-esperado';
+  else if (realG > esperadaG) veredicto = 'mas-de-lo-esperado';
+  else veredicto = 'menos-de-lo-esperado';
+  return { ...s, esperadaG, realG, veredicto };
 }

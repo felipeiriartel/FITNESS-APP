@@ -495,3 +495,45 @@ details summary { cursor: pointer; color: var(--palta); font-weight: 650; }
 .day-balance { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: 0.95rem; color: var(--muted); }
 .day-balance .deficit b { color: var(--palta); }
 .day-balance .superavit b { color: var(--aji); }
+
+/* Intensidad con descripción */
+.intensity { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.intensity button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 14px; padding: 10px; cursor: pointer; min-height: 84px;
+  transition: background 0.18s, border-color 0.18s, transform 0.1s;
+}
+.intensity button:active { transform: scale(0.97); }
+.intensity button small { font-size: 0.78rem; line-height: 1.25; }
+.intensity button.on { background: var(--palta); border-color: var(--palta); color: var(--on-palta); }
+.intensity button.on small { color: var(--on-palta); opacity: 0.9; }
+.btn.ghost.danger { color: var(--aji); }
+
+/* Filas tocables (editar) */
+.list-tap {
+  display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;
+  border: none; background: transparent; color: inherit; text-align: left; font: inherit;
+  padding: 4px; margin: -4px; border-radius: 14px; cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.list-tap:hover { background: var(--surface-2); }
+.list-tap:active { transform: scale(0.985); background: var(--surface-2); }
+.list-tap .grow { display: flex; flex-direction: column; gap: 2px; }
+.list-tap .item-title { display: -webkit-box; }
+
+/* Racha */
+.streak {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center;
+  background: var(--choclo-soft); color: var(--ink); border-radius: 999px;
+  padding: 8px 14px; font-size: 0.95rem; align-self: center; text-align: center;
+}
+.streak b { font-family: var(--font-display); }
+
+/* Análisis semanal */
+.weekly-lead { font-size: 1.05rem; line-height: 1.5; }
+.weekly-lead b { font-family: var(--font-display); }
+
+.chips.compact { gap: 6px; }
+.chips.compact .chip { min-height: 40px; padding: 6px 12px; font-size: 0.93rem; }
+.chips.compact .chip .emoji { font-size: 1.05rem; }

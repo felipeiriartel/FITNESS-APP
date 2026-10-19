@@ -7,6 +7,7 @@ import { useData } from '../data.jsx';
 import LineChart from '../components/LineChart.jsx';
 import { ComoMedir } from '../components/forms.jsx';
 import { Icon } from '../components/ui.jsx';
+import WeeklyCard from '../components/WeeklyCard.jsx';
 
 const RANGOS = { 30: '30 días', 90: '90 días', 365: '1 año', 0: 'Todo' };
 
@@ -44,6 +45,9 @@ export default function Progress({ abrir }) {
         <h1>Progreso</h1>
         <button className="btn small primary" onClick={() => abrir('peso')}>⚖️ Registrar peso</button>
       </header>
+
+      <WeeklyCard semana="pasada" />
+      <WeeklyCard semana="actual" />
 
       <section className="card stack">
         <div className="grid3">

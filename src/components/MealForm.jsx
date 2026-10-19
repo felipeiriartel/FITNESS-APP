@@ -27,7 +27,19 @@ const n = (v) => {
  * La foto solo se usa para el análisis; se guarda únicamente si la comida
  * se guarda como frecuente.
  */
-export default function MealForm({ fecha, onClose, modo = 'foto', inicial }) {
+/** Convierte una comida guardada en los valores iniciales del formulario de edición. */
+function desdeComida(c) {
+  const items = Array.isArray(c.items) && c.items.length
+    ? c.items
+    : [{ nombre: c.description, cantidad: '', gramos: 0, kcal: c.kcal, proteina_g: c.protein_g, carbohidratos_g: c.carbs_g, grasas_g: c.fat_g }];
+  return {
+    titulo: 'Editar comida', tipo: c.meal_type, nombre: c.description,
+    items: items.map((it) => ({ ...itemVacio(), ...it })),
+  };
+}
+
+export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inicialProp, editar }) {
+  const inicial = inicialProp ?? (editar ? desdeComida(editar) : undefined);
   const { userId, reload } = useData();
   const toast = useToast();
   const [tipo, setTipo] = useState(inicial?.tipo ?? tipoPorHora());
@@ -133,7 +145,12 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial }) {
         source: resultado || inicial?.fuente === 'ia' ? 'ia' : 'manual',
         photo_path: null,
       };
-      const { error: e1 } = await supabase.from('meals').insert(fila);
+      const { error: e1 } = editar
+        ? await supabase.from('meals').update({
+          meal_type: fila.meal_type, description: fila.description, kcal: fila.kcal,
+          protein_g: fila.protein_g, carbs_g: fila.carbs_g, fat_g: fila.fat_g, items: fila.items,
+        }).eq('id', editar.id)
+        : await supabase.from('meals').insert(fila);
       if (e1) throw e1;
       if (guardarFav) {
         const { error: e2 } = await supabase.from('favorite_meals').insert({
@@ -143,13 +160,28 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial }) {
         });
         if (e2) throw e2;
       }
-      toast(`✅ ${desc}: ${fila.kcal} kcal registradas`);
+      toast(editar ? `✅ ${desc} actualizada` : `✅ ${desc}: ${fila.kcal} kcal registradas`);
       await reload();
       onClose(true);
     } catch (e) {
       setError(e.message ?? String(e));
       setEstado('editando');
     }
+  }
+
+  async function eliminar() {
+    if (!confirm(`¿Eliminar "${editar.description}"?`)) return;
+    setEstado('guardando');
+    const { error: e } = await supabase.from('meals').delete().eq('id', editar.id);
+    if (e) {
+      setError(e.message);
+      setEstado('editando');
+      return;
+    }
+    if (editar.photo_path) await supabase.storage.from('meal-photos').remove([editar.photo_path]);
+    toast('Comida eliminada');
+    await reload();
+    onClose(true);
   }
 
   const ocupado = estado !== 'editando';
@@ -246,7 +278,7 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial }) {
 
         {items.length > 0 && (
           <div className="card stack" style={{ gap: 8 }}>
-            <h3>Revise y ajuste si es necesario</h3>
+            {!editar && <h3>Revise y ajuste si es necesario</h3>}
             <label className="field">
               Nombre del registro
               <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Almuerzo casero" />
@@ -283,8 +315,11 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial }) {
             </label>
             {foto && !guardarFav && <small>La foto solo se usó para el análisis y no quedará guardada.</small>}
             <button className="btn primary big block" disabled={ocupado} onClick={guardar}>
-              {estado === 'guardando' ? 'Guardando…' : 'Guardar registro'}
+              {estado === 'guardando' ? 'Guardando…' : editar ? 'Guardar cambios' : 'Guardar registro'}
             </button>
+            {editar && (
+              <button className="btn ghost danger block" disabled={ocupado} onClick={eliminar}>Eliminar comida</button>
+            )}
           </div>
         )}
       </div>

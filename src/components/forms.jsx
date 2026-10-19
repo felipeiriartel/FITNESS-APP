@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { EJERCICIOS, NIVELES_ACTIVIDAD, TIPOS_COMIDA, kcalEjercicio } from '../lib/calc.js';
+import { EJERCICIOS, NIVELES_ACTIVIDAD, TIPOS_COMIDA, descripcionIntensidad, kcalEjercicio } from '../lib/calc.js';
 import { todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
@@ -73,68 +73,179 @@ export function FavoritesPicker({ fecha, onClose }) {
 }
 
 /* ---------------- Ejercicio ---------------- */
-export function ExerciseForm({ fecha, onClose }) {
-  const { userId, reload, metas } = useData();
+const MINUTOS_RAPIDOS = [30, 45, 60, 75, 90];
+const TIPOS_PRINCIPALES = ['pesas', 'futbol', 'pichanga', 'correr', 'caminar', 'bicicleta'];
+
+/**
+ * Registrar o editar un ejercicio.
+ * El gasto se estima con tiempo e intensidad (MET), o se toma de las calorías activas del reloj.
+ */
+export function ExerciseForm({ fecha, onClose, existente }) {
+  const { userId, reload, metas, exercises } = useData();
   const toast = useToast();
-  const [tipo, setTipo] = useState('pesas');
-  const [intensidad, setIntensidad] = useState('moderada');
-  const [minutos, setMinutos] = useState('60');
-  const [descripcion, setDescripcion] = useState('');
+  const peso = metas?.peso ?? 70;
+  const [tipo, setTipo] = useState(existente?.exercise_type ?? 'pesas');
+  const [intensidad, setIntensidad] = useState(existente?.intensity ?? 'moderada');
+  const [minutos, setMinutos] = useState(String(existente?.duration_min ?? 60));
+  const [descripcion, setDescripcion] = useState(existente?.description ?? '');
+  // Si las calorías guardadas se alejan bastante de la estimación, el registro vino del reloj.
+  // (Se deja un margen porque el peso pudo cambiar desde que se registró.)
+  const estimadaOriginal = existente ? kcalEjercicio(existente.exercise_type, existente.intensity, existente.duration_min, peso) : 0;
+  const desdeReloj = Boolean(existente)
+    && Math.abs(existente.kcal_est - estimadaOriginal) > Math.max(15, estimadaOriginal * 0.12);
+  const [modo, setModo] = useState(desdeReloj ? 'reloj' : 'estimar');
+  const [kcalReloj, setKcalReloj] = useState(desdeReloj ? String(existente.kcal_est) : '');
   const [error, setError] = useState(null);
   const [ocupado, setOcupado] = useState(false);
-  const peso = metas?.peso ?? 70;
-  const kcal = kcalEjercicio(tipo, intensidad, num(minutos) || 0, peso);
+  const [todosLosTipos, setTodosLosTipos] = useState(false);
+
+  const m = Math.round(num(minutos)) || 0;
+  // Al editar sin tocar tipo, minutos ni intensidad, se conservan las calorías ya guardadas.
+  const sinCambios = existente && !desdeReloj && tipo === existente.exercise_type
+    && intensidad === existente.intensity && m === existente.duration_min;
+  const kcalEstimada = sinCambios ? existente.kcal_est : kcalEjercicio(tipo, intensidad, m, peso);
+  const kcal = modo === 'reloj' ? Math.round(num(kcalReloj)) || 0 : kcalEstimada;
+  const textos = descripcionIntensidad(tipo);
+
+  // Últimas rutinas distintas, para repetirlas con un toque.
+  const recientes = [];
+  if (!existente) {
+    const vistos = new Set();
+    for (const e of [...exercises].sort((a, b) => b.log_date.localeCompare(a.log_date))) {
+      const clave = `${e.exercise_type}|${e.duration_min}|${e.intensity}|${e.description ?? ''}`;
+      if (vistos.has(clave)) continue;
+      vistos.add(clave);
+      recientes.push(e);
+      if (recientes.length === 4) break;
+    }
+  }
+
+  function usarReciente(e) {
+    setTipo(e.exercise_type);
+    setMinutos(String(e.duration_min));
+    setIntensidad(e.intensity);
+    setDescripcion(e.description ?? '');
+    setModo('estimar');
+  }
 
   async function guardar() {
-    const m = Math.round(num(minutos));
     if (!m || m < 1 || m > 600) return setError('Indique una duración entre 1 y 600 minutos.');
+    if (modo === 'reloj' && !(kcal > 0 && kcal <= 5000)) return setError('Indique las calorías activas que marcó el reloj.');
     setOcupado(true);
-    const { error: e } = await supabase.from('exercise_logs').insert({
-      user_id: userId, log_date: fecha, exercise_type: tipo, intensity: intensidad,
-      duration_min: m, description: descripcion.trim() || null, kcal_est: kcal,
-    });
+    setError(null);
+    const fila = {
+      exercise_type: tipo, intensity: intensidad, duration_min: m,
+      description: descripcion.trim() || null, kcal_est: kcal,
+    };
+    const { error: e } = existente
+      ? await supabase.from('exercise_logs').update(fila).eq('id', existente.id)
+      : await supabase.from('exercise_logs').insert({ ...fila, user_id: userId, log_date: fecha });
     setOcupado(false);
     if (e) return setError(e.message);
-    toast(`${EJERCICIOS[tipo].emoji} ${EJERCICIOS[tipo].label}: ${m} min registrados`);
+    const ej = EJERCICIOS[tipo] ?? EJERCICIOS.otro;
+    toast(existente ? `${ej.emoji} Ejercicio actualizado` : `${ej.emoji} ${ej.label}: ${m} min, ${kcal} kcal`);
+    await reload();
+    onClose();
+  }
+
+  async function eliminar() {
+    if (!confirm('¿Eliminar este ejercicio?')) return;
+    setOcupado(true);
+    const { error: e } = await supabase.from('exercise_logs').delete().eq('id', existente.id);
+    setOcupado(false);
+    if (e) return setError(e.message);
+    toast('Ejercicio eliminado');
     await reload();
     onClose();
   }
 
   return (
-    <Modal title="Registrar ejercicio" onClose={onClose}>
+    <Modal title={existente ? 'Editar ejercicio' : 'Registrar ejercicio'} onClose={onClose}>
       <div className="stack">
-        <div className="chips" role="radiogroup" aria-label="Tipo de ejercicio">
-          {Object.entries(EJERCICIOS).map(([id, e]) => (
-            <button key={id} role="radio" aria-checked={tipo === id} className={`chip${tipo === id ? ' on' : ''}`} onClick={() => setTipo(id)}>
-              <span className="emoji" aria-hidden="true">{e.emoji}</span>{e.label}
-            </button>
-          ))}
+        {recientes.length > 0 && (
+          <div className="stack" style={{ gap: 6 }}>
+            <small className="muted">Repetir uno reciente</small>
+            <div className="chips compact">
+              {recientes.map((e) => (
+                <button key={e.id} className="chip" onClick={() => usarReciente(e)}>
+                  <span className="emoji" aria-hidden="true">{EJERCICIOS[e.exercise_type]?.emoji ?? '✨'}</span>
+                  {EJERCICIOS[e.exercise_type]?.label ?? e.exercise_type}, {e.duration_min} min
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="stack" style={{ gap: 6 }}>
+          <small className="muted">Tipo de ejercicio</small>
+          <div className="chips compact" role="radiogroup" aria-label="Tipo de ejercicio">
+            {Object.entries(EJERCICIOS)
+              .filter(([id]) => todosLosTipos || TIPOS_PRINCIPALES.includes(id) || id === tipo)
+              .map(([id, e]) => (
+                <button key={id} role="radio" aria-checked={tipo === id} className={`chip${tipo === id ? ' on' : ''}`} onClick={() => setTipo(id)}>
+                  <span className="emoji" aria-hidden="true">{e.emoji}</span>{e.label}
+                </button>
+              ))}
+            {!todosLosTipos && (
+              <button className="chip" onClick={() => setTodosLosTipos(true)}>Más tipos…</button>
+            )}
+          </div>
         </div>
-        <label className="field">
-          Duración (minutos)
-          <input inputMode="numeric" value={minutos} onChange={(e) => setMinutos(e.target.value)} />
-        </label>
-        <div className="stack" style={{ gap: 4 }}>
+
+        <div className="stack" style={{ gap: 6 }}>
+          <label className="field" style={{ gap: 6 }}>
+            {tipo === 'futbol' || tipo === 'pichanga' ? 'Minutos que jugó' : 'Duración (minutos)'}
+            <input inputMode="numeric" value={minutos} onChange={(e) => setMinutos(e.target.value.replace(/\D/g, ''))} />
+          </label>
+          <div className="chips compact">
+            {MINUTOS_RAPIDOS.map((v) => (
+              <button key={v} className={`chip${m === v ? ' on' : ''}`} onClick={() => setMinutos(String(v))}>{v} min</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="stack" style={{ gap: 6 }}>
           <small className="muted">Intensidad</small>
-          <div className="seg">
+          <div className="intensity">
             {['baja', 'moderada', 'alta'].map((i) => (
-              <button key={i} className={intensidad === i ? 'on' : ''} onClick={() => setIntensidad(i)}>
-                {i[0].toUpperCase() + i.slice(1)}
+              <button key={i} className={intensidad === i ? 'on' : ''} onClick={() => setIntensidad(i)} aria-pressed={intensidad === i}>
+                <b>{i === 'baja' ? 'Suave' : i === 'moderada' ? 'Moderada' : 'Intensa'}</b>
+                <small>{textos[i]}</small>
               </button>
             ))}
           </div>
         </div>
+
         <label className="field">
           Qué hizo (opcional)
           <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)}
-            placeholder="Ej: pierna — sentadilla 4×10, prensa 3×12, peso muerto rumano 3×10" />
+            placeholder={tipo === 'pesas' ? 'Ej: pierna, sentadilla 4×10, prensa 3×12' : 'Ej: partido con amigos, 2 tiempos de 30 min'} />
         </label>
+
+        <div className="stack" style={{ gap: 6 }}>
+          <small className="muted">¿Cómo calcular las calorías?</small>
+          <div className="seg">
+            <button className={modo === 'estimar' ? 'on' : ''} onClick={() => setModo('estimar')}>Estimar</button>
+            <button className={modo === 'reloj' ? 'on' : ''} onClick={() => setModo('reloj')}>⌚ Usar mi reloj</button>
+          </div>
+          {modo === 'reloj' && (
+            <label className="field">
+              Calorías activas que marcó el reloj
+              <input inputMode="numeric" value={kcalReloj} onChange={(e) => setKcalReloj(e.target.value.replace(/\D/g, ''))} placeholder="Ej: 520" autoFocus />
+              <small>Use las calorías “activas” del entrenamiento, no las totales del día. Estimación por tiempo e intensidad: {fmt(kcalEstimada)} kcal.</small>
+            </label>
+          )}
+        </div>
+
         <div className="alert info">
-          Gasto estimado: <b className="num">{fmt(kcal)} kcal</b>. Para su balance diario se considera el 75% de este valor,
-          porque las fórmulas suelen sobreestimar el gasto del ejercicio.
+          Gasto del ejercicio: <b className="num">{fmt(kcal)} kcal</b>. En su balance se cuenta el 75%
+          (<b className="num">{fmt(Math.round(kcal * 0.75))} kcal</b>), porque tanto las fórmulas como los relojes tienden a sobreestimarlo.
         </div>
         <ErrorBox>{error}</ErrorBox>
-        <button className="btn primary big block" disabled={ocupado} onClick={guardar}>Guardar ejercicio</button>
+        <button className="btn primary big block" disabled={ocupado} onClick={guardar}>
+          {existente ? 'Guardar cambios' : 'Guardar ejercicio'}
+        </button>
+        {existente && <button className="btn ghost danger block" disabled={ocupado} onClick={eliminar}>Eliminar ejercicio</button>}
       </div>
     </Modal>
   );

@@ -11,6 +11,7 @@ import MealForm from './components/MealForm.jsx';
 import QuickActions from './components/QuickActions.jsx';
 import BarcodeScanner from './components/BarcodeScanner.jsx';
 import Suggestions from './components/Suggestions.jsx';
+import CopyDay from './components/CopyDay.jsx';
 import { ExerciseForm, FavoritesPicker, ProfileForm, WeightForm } from './components/forms.jsx';
 import { ErrorBox, Icon, ToastProvider } from './components/ui.jsx';
 
@@ -124,7 +125,7 @@ function Shell({ email }) {
     <>
       <main className="app">
         <div className="page" key={tab}>
-          {tab === 'hoy' && <Today fecha={fecha} setFecha={setFecha} abrir={abrir} />}
+          {tab === 'hoy' && <Today fecha={fecha} setFecha={setFecha} abrir={abrir} irAProgreso={() => irA('progreso')} />}
           {tab === 'calendario' && <CalendarPage abrirDia={abrirDia} />}
           {tab === 'progreso' && <Progress abrir={abrir} />}
           {tab === 'ajustes' && <Settings email={email} />}
@@ -144,12 +145,18 @@ function Shell({ email }) {
       </nav>
 
       {a === 'menu' && <QuickActions fecha={fechaRegistro} onClose={cerrar} abrir={abrir} />}
-      {a === 'comida' && <MealForm key="foto" fecha={fechaRegistro} onClose={cerrar} inicial={accion.datos?.inicial} />}
+      {a === 'comida' && (
+        <MealForm key={accion.datos?.editar?.id ?? 'foto'} fecha={accion.datos?.editar?.log_date ?? fechaRegistro} onClose={cerrar}
+          inicial={accion.datos?.inicial} editar={accion.datos?.editar} />
+      )}
+      {a === 'copiar' && <CopyDay fecha={fechaRegistro} onClose={cerrar} />}
       {a === 'texto' && <MealForm key="texto" modo="texto" fecha={fechaRegistro} onClose={cerrar} />}
       {a === 'codigo' && <BarcodeScanner fecha={fechaRegistro} onClose={cerrar} abrir={abrir} />}
       {a === 'sugerir' && <Suggestions fecha={fechaRegistro} onClose={cerrar} abrir={abrir} />}
       {a === 'favoritas' && <FavoritesPicker fecha={fechaRegistro} onClose={cerrar} />}
-      {a === 'ejercicio' && <ExerciseForm fecha={fechaRegistro} onClose={cerrar} />}
+      {a === 'ejercicio' && (
+        <ExerciseForm key={accion.datos?.existente?.id ?? 'nuevo'} fecha={fechaRegistro} onClose={cerrar} existente={accion.datos?.existente} />
+      )}
       {a === 'peso' && <WeightForm fecha={fechaRegistro} onClose={cerrar} />}
     </>
   );

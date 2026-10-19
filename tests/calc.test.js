@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  bmr, calcularMetas, construirContexto, estadoDia, kcalEjercicio, resumenSemana, tdeeAdaptativo,
+  analisisSemana, bmr, calcularMetas, construirContexto, estadoDia, kcalEjercicio, racha, resumenSemana, tdeeAdaptativo,
 } from '../src/lib/calc.js';
 import { addDays, ageOn, startOfWeek, diffDays } from '../src/lib/dates.js';
 
@@ -116,4 +116,38 @@ test('opción A: en automático el ejercicio registrado sube la meta; en manual 
   const manual = { ...perfil, target_mode: 'manual', manual_target_kcal: 2100 };
   assert.equal(calcularMetas(manual, sinEjercicio, hoy).meta, 2100);
   assert.equal(calcularMetas(manual, conEjercicio, hoy).meta, 2100);
+});
+
+test('racha de días registrados', () => {
+  const hoy = '2026-10-19';
+  const dias = ['2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13', '2026-10-16', '2026-10-17', '2026-10-18'];
+  const ctx = construirContexto({ weights: [], meals: dias.map((d) => ({ log_date: d, kcal: 2000, protein_g: 0, carbs_g: 0, fat_g: 0 })), exercises: [], water: [] });
+  const r = racha(ctx.intakeByDate, hoy);
+  assert.deepEqual(r, { actual: 3, mejor: 4, hoyRegistrado: false }); // hoy sin registrar: cuenta desde ayer
+  const ctx2 = construirContexto({ weights: [], meals: [...dias, hoy].map((d) => ({ log_date: d, kcal: 2000, protein_g: 0, carbs_g: 0, fat_g: 0 })), exercises: [], water: [] });
+  assert.equal(racha(ctx2.intakeByDate, hoy).actual, 4);
+  assert.equal(racha(construirContexto({ weights: [], meals: [], exercises: [], water: [] }).intakeByDate, hoy).actual, 0);
+});
+
+test('análisis semanal: déficit, baja esperada y veredicto', () => {
+  const lunesAnterior = '2026-10-05';
+  const lunes = '2026-10-12';
+  const hoy = '2026-10-19';
+  const weights = [];
+  const meals = [];
+  for (let i = 0; i < 14; i++) {
+    const d = addDays(lunesAnterior, i);
+    weights.push({ log_date: d, weight_kg: i < 7 ? 80 : 79.5 });
+    if (i >= 7) meals.push({ log_date: d, kcal: 1850, protein_g: 130, carbs_g: 0, fat_g: 0 });
+  }
+  const ctx = construirContexto({ weights, meals, exercises: [], water: [] });
+  const metas = calcularMetas(perfil, ctx, hoy);
+  const a = analisisSemana(lunes, ctx, metas, hoy);
+  console.log('análisis:', { deficit: a.deficit, esperadaG: a.esperadaG, realG: a.realG, veredicto: a.veredicto });
+  assert.equal(a.diasRegistrados, 7);
+  assert.equal(a.realG, 500);
+  assert.equal(a.esperadaG, Math.round((a.deficit / 7700) * 1000));
+  assert.ok(['segun-lo-esperado', 'mas-de-lo-esperado', 'menos-de-lo-esperado'].includes(a.veredicto));
+  const pocos = analisisSemana(lunesAnterior, ctx, metas, hoy);
+  assert.equal(pocos.veredicto, 'pocos-registros');
 });

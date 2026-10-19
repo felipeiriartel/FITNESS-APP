@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { EJERCICIOS, ESTADOS, FACTOR_EJERCICIO, TIPOS_COMIDA, estadoDia, gastoDelDia } from '../lib/calc.js';
+import { EJERCICIOS, ESTADOS, FACTOR_EJERCICIO, TIPOS_COMIDA, estadoDia, gastoDelDia, racha } from '../lib/calc.js';
 import { addDays, formatLargo, fromISO, todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
 import { Bar, Icon, Macro, Pill, Ring, useToast } from '../components/ui.jsx';
 import WaterInput from '../components/WaterInput.jsx';
 import { useFotos } from '../lib/useFotos.js';
+import WeeklyCard from '../components/WeeklyCard.jsx';
 
-export default function Today({ fecha, setFecha, abrir }) {
+export default function Today({ fecha, setFecha, abrir, irAProgreso }) {
   const { metas, ctx, exercises, water, weights, userId, reload } = useData();
   const toast = useToast();
   const [meals, setMeals] = useState([]);
@@ -36,6 +37,8 @@ export default function Today({ fecha, setFecha, abrir }) {
   const balance = consumo.kcal - gasto; // negativo = déficit
   const previsto = Math.round(gasto - metas.meta); // déficit si come justo la meta
   const pesoDia = weights.find((w) => w.log_date === fecha);
+  const r = racha(ctx.intakeByDate, hoy);
+  const esLunes = new Date().getDay() === 1;
 
   async function borrarComida(m) {
     if (!confirm(`¿Eliminar "${m.description}"?`)) return;
@@ -86,6 +89,16 @@ export default function Today({ fecha, setFecha, abrir }) {
           style={{ visibility: fecha >= hoy ? 'hidden' : 'visible' }}><Icon name="der" /></button>
       </header>
 
+      {fecha === hoy && r.actual > 0 && (
+        <div className="streak" role="status">
+          <span aria-hidden="true">🔥</span>
+          <b className="num">{r.actual} {r.actual === 1 ? 'día' : 'días'}</b> registrando seguidos
+          {!r.hoyRegistrado && <small> · registre algo hoy para mantener la racha</small>}
+          {r.mejor > r.actual && <small> · récord: {r.mejor}</small>}
+        </div>
+      )}
+
+
       <section className="hero" aria-label="Resumen de calorías">
         <Ring value={consumo.kcal} max={metas.meta} estado={estado === 'sin' ? 'ok' : estado}>
           <span className="value num" style={{ color: restante < 0 ? 'var(--aji)' : undefined }}>
@@ -133,10 +146,12 @@ export default function Today({ fecha, setFecha, abrir }) {
         <span className="emoji" aria-hidden="true">💡</span> ¿Qué puedo comer ahora?
       </button>
 
+      {fecha === hoy && esLunes && <WeeklyCard semana="pasada" compacto onVerMas={irAProgreso} />}
+
       <section className="card">
         <div className="card-head">
           <h2>Comidas</h2>
-          <small className="num">{meals.length ? `${meals.length} ${meals.length === 1 ? 'registro' : 'registros'}` : ''}</small>
+          <button className="btn small" onClick={() => abrir('copiar')}>📋 Copiar de otro día</button>
         </div>
         {!meals.length && (
           <div className="empty">
@@ -144,6 +159,7 @@ export default function Today({ fecha, setFecha, abrir }) {
             Aún no hay comidas este día. Tome una foto de su plato para empezar.
           </div>
         )}
+        {meals.length > 0 && <small className="muted">Toque una comida para editarla.</small>}
         {TIPOS_COMIDA.map((t) => {
           const grupo = meals.filter((m) => m.meal_type === t.id);
           if (!grupo.length) return null;
@@ -156,19 +172,21 @@ export default function Today({ fecha, setFecha, abrir }) {
               <div className="list">
                 {grupo.map((m) => (
                   <div className="list-item" key={m.id}>
-                    {m.photo_path && fotos[m.photo_path] ? (
-                      <img className="thumb" src={fotos[m.photo_path]} alt="" />
-                    ) : (
-                      <div className="thumb" aria-hidden="true">{t.emoji}</div>
-                    )}
-                    <div className="grow">
-                      <div className="item-title">{m.description}</div>
-                      <div className="tags">
-                        <span className="tag p">P {fmt(m.protein_g)} g</span>
-                        <span className="tag c">C {fmt(m.carbs_g)} g</span>
-                        <span className="tag g">G {fmt(m.fat_g)} g</span>
-                      </div>
-                    </div>
+                    <button className="list-tap" onClick={() => abrir('comida', { editar: m })} aria-label={`Editar ${m.description}`}>
+                      {m.photo_path && fotos[m.photo_path] ? (
+                        <img className="thumb" src={fotos[m.photo_path]} alt="" />
+                      ) : (
+                        <span className="thumb" aria-hidden="true">{t.emoji}</span>
+                      )}
+                      <span className="grow">
+                        <span className="item-title">{m.description}</span>
+                        <span className="tags">
+                          <span className="tag p">P {fmt(m.protein_g)} g</span>
+                          <span className="tag c">C {fmt(m.carbs_g)} g</span>
+                          <span className="tag g">G {fmt(m.fat_g)} g</span>
+                        </span>
+                      </span>
+                    </button>
                     <div className="item-side">
                       <span className="item-kcal num">{fmt(m.kcal)}</span>
                       <span className="item-actions">
@@ -204,11 +222,13 @@ export default function Today({ fecha, setFecha, abrir }) {
         <div className="list">
           {ejerciciosDia.map((e) => (
             <div className="list-item" key={e.id}>
-              <div className="thumb" aria-hidden="true">{EJERCICIOS[e.exercise_type]?.emoji ?? '✨'}</div>
-              <div className="grow">
-                <div className="item-title">{EJERCICIOS[e.exercise_type]?.label ?? e.exercise_type}</div>
-                <small>{e.duration_min} min, intensidad {e.intensity}{e.description ? `. ${e.description}` : ''}</small>
-              </div>
+              <button className="list-tap" onClick={() => abrir('ejercicio', { existente: e })} aria-label="Editar ejercicio">
+                <span className="thumb" aria-hidden="true">{EJERCICIOS[e.exercise_type]?.emoji ?? '✨'}</span>
+                <span className="grow">
+                  <span className="item-title">{EJERCICIOS[e.exercise_type]?.label ?? e.exercise_type}</span>
+                  <small>{e.duration_min} min, {e.intensity === 'baja' ? 'suave' : e.intensity === 'alta' ? 'intensa' : 'moderada'}{e.description ? `. ${e.description}` : ''}</small>
+                </span>
+              </button>
               <span className="item-kcal num">{fmt(e.kcal_est)}</span>
               <button className="icon-btn" title="Eliminar" aria-label="Eliminar ejercicio" onClick={() => borrarEjercicio(e)}><Icon name="basura" size={19} /></button>
             </div>
