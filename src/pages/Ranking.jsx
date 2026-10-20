@@ -18,6 +18,17 @@ function mesAnterior(iso) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
+const corto = (f) => (f.es_yo ? 'usted' : f.nombre.split(' ')[0]);
+function textoLider(filas, conPuntos) {
+  if (!filas?.length || !conPuntos) return 'Todavía nadie suma puntos este mes';
+  const primeros = filas.filter((f) => f.posicion === 1);
+  if (primeros.length > 1) {
+    const nombres = primeros.map(corto);
+    return `Empate en el 1.º lugar: ${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]} con ${primeros[0].puntos} pts`;
+  }
+  return `Va ganando ${corto(filas[0])} con ${filas[0].puntos} pts`;
+}
+
 export default function Ranking() {
   const { ctx } = useData();
   const hoy = todayISO();
@@ -96,7 +107,7 @@ export default function Ranking() {
         <div className="grow">
           <small>Premio para el 1.º del mes</small>
           <b className="num">{PREMIO.monto}<sup>*</sup></b>
-          <span>{lider && conPuntos ? `Va ganando ${lider.es_yo ? 'usted' : lider.nombre.split(' ')[0]} con ${lider.puntos} pts` : 'Todavía nadie suma puntos este mes'}</span>
+          <span>{textoLider(filas, conPuntos)}</span>
         </div>
       </section>
 
