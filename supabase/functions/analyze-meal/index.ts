@@ -6,7 +6,7 @@
 //   AI_PROVIDER = anthropic | openai | gemini   (por defecto: anthropic)
 //   AI_API_KEY  = clave del proveedor
 //   AI_MODEL    = modelo (opcional; ver valores por defecto abajo)
-// Cada llamada deja en los registros el uso de tokens, para controlar el costo.
+// Cada llamada queda en la tabla ia_uso (usuario, modo, tokens, ok) y en los registros, para controlar el costo.
 
 const DEFAULT_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-5-5",
@@ -119,6 +119,36 @@ type Body = {
 type Uso = { entrada: number; salida: number };
 type Resultado = { raw: string; parsed?: Record<string, unknown>; truncado?: boolean; uso: Uso };
 type Modo = "analizar" | "sugerir";
+
+/** Usuario de la sesión: el JWT ya lo verificó Supabase (verify_jwt = true); aquí solo se lee. */
+function usuarioDe(req: Request): string | null {
+  try {
+    const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+    const parte = token.split(".")[1];
+    if (!parte) return null;
+    const datos = JSON.parse(atob(parte.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(parte.length / 4) * 4, "=")));
+    return typeof datos.sub === "string" ? datos.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Guarda una fila en ia_uso por cada llamada. Si falla, no afecta la respuesta al usuario. */
+async function registrarUso(fila: Record<string, unknown>) {
+  const url = Deno.env.get("SUPABASE_URL");
+  const clave = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !clave) return;
+  try {
+    const r = await fetch(`${url}/rest/v1/ia_uso`, {
+      method: "POST",
+      headers: { apikey: clave, Authorization: `Bearer ${clave}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify(fila),
+    });
+    if (!r.ok) console.warn("ia_uso:", r.status, (await r.text()).slice(0, 200));
+  } catch (e) {
+    console.warn("ia_uso:", String(e));
+  }
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -327,6 +357,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Método no permitido." }, 405);
 
+  const uso = { user_id: usuarioDe(req), modo: "analizar", foto: false, proveedor: null as string | null, modelo: null as string | null,
+    intentos: 0, tokens_entrada: 0, tokens_salida: 0, ok: false, error: null as string | null };
   try {
     let body: Body;
     try {
@@ -336,6 +368,7 @@ Deno.serve(async (req) => {
       return json({ error: "La solicitud no es un JSON válido. Revise comillas y llaves del texto enviado." }, 400);
     }
     const modo = body.mode === "sugerir" ? "sugerir" : "analizar";
+    uso.modo = modo;
     if (modo === "analizar" && !body.image_base64 && !body.description?.trim()) {
       return json({ error: "Envíe una foto o una descripción del alimento." }, 400);
     }
@@ -350,6 +383,9 @@ Deno.serve(async (req) => {
     const model = Deno.env.get("AI_MODEL") || DEFAULT_MODELS[provider];
     if (!model) return json({ error: `Proveedor no soportado: ${provider}` }, 500);
 
+    uso.proveedor = provider;
+    uso.modelo = model;
+    uso.foto = Boolean(body.image_base64);
     const system = modo === "sugerir" ? SYSTEM_SUGERIR : SYSTEM_ANALIZAR;
     const text = modo === "sugerir" ? textoSugerir(body) : textoAnalizar(body);
     const llamar = (t: string): Promise<Resultado> => {
@@ -366,6 +402,9 @@ Deno.serve(async (req) => {
     for (let intento = 1; intento <= 2 && !parsed; intento++) {
       const t = intento === 1 ? text : `${text}\nTu respuesta anterior no se pudo leer. Responde de nuevo, más breve, con la estructura exacta.`;
       const res = await llamar(t);
+      uso.intentos = intento;
+      uso.tokens_entrada += res.uso.entrada;
+      uso.tokens_salida += res.uso.salida;
       parsed = res.parsed ?? extractJson(res.raw);
       console.log(JSON.stringify({
         evento: "uso_ia", modo, proveedor: provider, modelo: model, foto: Boolean(body.image_base64), intento,
@@ -375,13 +414,21 @@ Deno.serve(async (req) => {
       if (!parsed) console.error("Respuesta de la IA no interpretable:", res.truncado ? "(cortada por largo)" : "", res.raw.slice(0, 1500));
     }
     if (!parsed) {
+      uso.error = "respuesta no interpretable";
+      await registrarUso(uso);
       return json({
         error: "La IA no pudo entregar un resultado válido. Intente de nuevo o divida la comida en dos registros.",
       }, 502);
     }
+    uso.ok = true;
+    await registrarUso(uso);
     return json(modo === "sugerir" ? normalizarSugerencias(parsed) : normalizarAnalisis(parsed));
   } catch (e) {
     console.error("Error en analyze-meal:", e instanceof Error ? e.message : String(e));
+    if (uso.proveedor) {
+      uso.error = (e instanceof Error ? e.message : String(e)).slice(0, 300);
+      await registrarUso(uso);
+    }
     return json({ error: e instanceof Error ? e.message : "Error inesperado." }, 500);
   }
 });

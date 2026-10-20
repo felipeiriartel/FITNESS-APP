@@ -23,7 +23,7 @@ const leerSeccion = () => {
   }
 };
 
-export default function Progress({ abrir }) {
+export default function Progress({ abrir, irAAjustes }) {
   const { metas, ctx, weights, profile, reload } = useData();
   const [rango, setRango] = useState(90);
   const [verTodo, setVerTodo] = useState(false);
@@ -64,7 +64,10 @@ export default function Progress({ abrir }) {
     <div className="stack">
       <header className="page-head">
         <h1>Progreso</h1>
-        <button className="btn small primary" onClick={() => abrir('peso')}>⚖️ Peso</button>
+        <div className="head-actions">
+          <button className="btn small primary" onClick={() => abrir('peso')}>⚖️ Peso</button>
+          <button className="icon-btn round" onClick={irAAjustes} aria-label="Ajustes" title="Ajustes"><Icon name="ajustes" /></button>
+        </div>
       </header>
 
       <div className="seg sticky" role="tablist" aria-label="Secciones de progreso">

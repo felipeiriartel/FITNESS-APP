@@ -12,7 +12,7 @@ const NOMBRES = {
   weight_logs: 'pesajes', meals: 'comidas', exercise_logs: 'ejercicios', water_logs: 'registros de agua', favorite_meals: 'comidas frecuentes',
 };
 
-export default function Settings({ email }) {
+export default function Settings({ email, volver }) {
   const { profile, favorites, userId, ctx, metas, reload } = useData();
   const toast = useToast();
   const [error, setError] = useState(null);
@@ -55,7 +55,10 @@ export default function Settings({ email }) {
 
   return (
     <div className="stack">
-      <header className="page-head"><h1>Ajustes</h1></header>
+      <header className="page-head">
+        <button className="icon-btn round" onClick={volver} aria-label="Volver"><Icon name="izq" /></button>
+        <div className="titles" style={{ textAlign: 'left' }}><h1>Ajustes</h1></div>
+      </header>
 
       <section className="card">
         <h2 style={{ marginBottom: 12 }}>Perfil y metas</h2>

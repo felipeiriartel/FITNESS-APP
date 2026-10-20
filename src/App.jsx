@@ -7,6 +7,7 @@ import Today from './pages/Today.jsx';
 import CalendarPage from './pages/CalendarPage.jsx';
 import Progress from './pages/Progress.jsx';
 import Settings from './pages/Settings.jsx';
+import Ranking from './pages/Ranking.jsx';
 import MealForm from './components/MealForm.jsx';
 import QuickActions from './components/QuickActions.jsx';
 import BarcodeScanner from './components/BarcodeScanner.jsx';
@@ -69,13 +70,14 @@ function Cargando({ texto }) {
 const TABS = [
   { id: 'hoy', label: 'Hoy', icon: 'hoy' },
   { id: 'calendario', label: 'Calendario', icon: 'calendario' },
+  { id: 'ranking', label: 'Ranking', icon: 'trofeo' },
   { id: 'progreso', label: 'Progreso', icon: 'progreso' },
-  { id: 'ajustes', label: 'Ajustes', icon: 'ajustes' },
 ];
 
 function Shell({ email }) {
   const { loading, error, profile, weights, metas } = useData();
   const [tab, setTab] = useState('hoy');
+  const [desde, setDesde] = useState('hoy'); // pestaña anterior, para volver desde Ajustes
   const [fecha, setFecha] = useState(todayISO());
   // { id: menu | comida | texto | codigo | sugerir | favoritas | ejercicio | peso, datos }
   const [accion, setAccion] = useState(null);
@@ -108,6 +110,7 @@ function Shell({ email }) {
   }
 
   const irA = (id) => {
+    if (id !== tab) setDesde(tab);
     setTab(id);
     window.scrollTo({ top: 0 });
   };
@@ -127,8 +130,9 @@ function Shell({ email }) {
         <div className="page" key={tab}>
           {tab === 'hoy' && <Today fecha={fecha} setFecha={setFecha} abrir={abrir} irAProgreso={() => irA('progreso')} irAAjustes={() => irA('ajustes')} />}
           {tab === 'calendario' && <CalendarPage abrirDia={abrirDia} />}
-          {tab === 'progreso' && <Progress abrir={abrir} />}
-          {tab === 'ajustes' && <Settings email={email} />}
+          {tab === 'ranking' && <Ranking />}
+          {tab === 'progreso' && <Progress abrir={abrir} irAAjustes={() => irA('ajustes')} />}
+          {tab === 'ajustes' && <Settings email={email} volver={() => irA(desde === 'ajustes' ? 'hoy' : desde)} />}
         </div>
       </main>
 
