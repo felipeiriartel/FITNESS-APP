@@ -4,8 +4,6 @@ import { MESES, todayISO } from '../lib/dates.js';
 import { useData } from '../data.jsx';
 import { Icon, Spinner } from '../components/ui.jsx';
 
-// Premio de prueba durante el piloto. Cambiar aquí cuando haya un premio real.
-const PREMIO = { monto: 'USD 100', nota: 'Premio de prueba durante el piloto de Comidia.' };
 const CADA_MS = 20000; // se actualiza cada 20 segundos mientras está abierta
 
 const iniciales = (n) => n.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
@@ -19,6 +17,12 @@ function mesAnterior(iso) {
 }
 
 const corto = (f) => (f.es_yo ? 'usted' : f.nombre.split(' ')[0]);
+function tituloLider(filas, conPuntos) {
+  if (!filas?.length || !conPuntos) return 'Sin líder aún';
+  if (filas.filter((f) => f.posicion === 1).length > 1) return 'Empate';
+  const n = corto(filas[0]);
+  return n.charAt(0).toUpperCase() + n.slice(1);
+}
 function textoLider(filas, conPuntos) {
   if (!filas?.length || !conPuntos) return 'Todavía nadie suma puntos este mes';
   const primeros = filas.filter((f) => f.posicion === 1);
@@ -97,7 +101,7 @@ export default function Ranking() {
         </span>
       </header>
 
-      <section className="prize" aria-label="Premio del mes">
+      <section className="prize" aria-label="Líder del mes">
         <svg className="prize-trophy" viewBox="0 0 64 64" aria-hidden="true">
           <path d="M18 8h28v14c0 10-6 17-14 17S18 32 18 22z" fill="#f2be22" />
           <path d="M18 12h-8c0 9 4 13 10 14M46 12h8c0 9-4 13-10 14" fill="none" stroke="#f2be22" strokeWidth="4" strokeLinecap="round" />
@@ -105,8 +109,8 @@ export default function Ranking() {
           <rect x="19" y="46" width="26" height="9" rx="3" fill="#f2be22" />
         </svg>
         <div className="grow">
-          <small>Premio para el 1.º del mes</small>
-          <b className="num">{PREMIO.monto}<sup>*</sup></b>
+          <small>Líder del mes</small>
+          <b>{tituloLider(filas, conPuntos)}</b>
           <span>{textoLider(filas, conPuntos)}</span>
         </div>
       </section>
@@ -151,7 +155,6 @@ export default function Ranking() {
           Ganador de {MESES[(m + 10) % 12].toLowerCase()}: <b>{anterior.es_yo ? 'usted' : anterior.nombre}</b> con {anterior.puntos} pts
         </p>
       )}
-      <small className="muted" style={{ textAlign: 'center' }}>*{PREMIO.nota}</small>
     </div>
   );
 }
