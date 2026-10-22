@@ -4,7 +4,7 @@ import { TIPOS_COMIDA } from '../lib/calc.js';
 import { addDays, formatLargo, todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
-import { ErrorBox, Modal, Spinner, useToast } from './ui.jsx';
+import { ErrorBox, Icon, Modal, Spinner, useToast } from './ui.jsx';
 
 /** Copia comidas de otro día al día que se está viendo. */
 export default function CopyDay({ fecha, onClose }) {
@@ -52,7 +52,7 @@ export default function CopyDay({ fecha, onClose }) {
     const { error: e } = await supabase.from('meals').insert(filas);
     setOcupado(false);
     if (e) return setError(e.message);
-    toast(`📋 ${filas.length} ${filas.length === 1 ? 'comida copiada' : 'comidas copiadas'} (${fmt(total)} kcal)`);
+    toast(`${filas.length} ${filas.length === 1 ? 'comida copiada' : 'comidas copiadas'} (${fmt(total)} kcal)`);
     await reload();
     onClose();
   }
@@ -84,13 +84,13 @@ export default function CopyDay({ fecha, onClose }) {
         <small className="muted">Comidas del {formatLargo(origen).toLowerCase()}. Desmarque las que no quiera copiar.</small>
 
         {comidas === null && <div className="empty"><Spinner /></div>}
-        {comidas?.length === 0 && <div className="empty"><span className="emoji">🍽️</span>No hay comidas registradas ese día.</div>}
+        {comidas?.length === 0 && <div className="empty"><Icon name="almuerzo" size={36} stroke={1.6} />No hay comidas registradas ese día. Pruebe con otra fecha.</div>}
         {comidas?.length > 0 && (
           <div className="list">
             {comidas.map((c) => (
               <label className="list-item check" key={c.id} style={{ cursor: 'pointer' }}>
                 <input type="checkbox" checked={elegidas.has(c.id)} onChange={() => alternar(c.id)} />
-                <span aria-hidden="true">{TIPOS_COMIDA.find((t) => t.id === c.meal_type)?.emoji}</span>
+                <Icon name={TIPOS_COMIDA.find((t) => t.id === c.meal_type)?.icono ?? 'almuerzo'} className="muted" />
                 <span className="grow item-title" style={{ fontWeight: 600 }}>{c.description}</span>
                 <span className="item-kcal num">{fmt(c.kcal)}</span>
               </label>

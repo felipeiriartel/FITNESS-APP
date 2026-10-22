@@ -62,7 +62,7 @@ export default function Reminders() {
     setTelefonoActivo(true);
     await guardar({ ...conf, activo: true, agua: ordenar(conf.agua) });
     await enviarPrueba().catch(() => {});
-    toast('🔔 Recordatorios activados');
+    toast('Recordatorios activados');
   });
 
   const desactivar = () => ejecutar(async () => {
@@ -112,7 +112,7 @@ export default function Reminders() {
         <>
           <div className="stack" style={{ gap: 10 }}>
             <div className="reminder-head">
-              <span className="emoji">💧</span>
+              <span className="badge agua"><Icon name="agua" size={18} /></span>
               <div className="grow">
                 <b>Agua</b>
                 <small>{metas ? `Meta ${fmt(metas.agua / 1000, 1)} L. Si ya la cumplió, no le avisa.` : 'Según su meta de agua.'}</small>
@@ -134,7 +134,7 @@ export default function Reminders() {
 
           <div className="stack" style={{ gap: 10 }}>
             <div className="reminder-head">
-              <span className="emoji">🍽️</span>
+              <span className="badge"><Icon name="almuerzo" size={18} /></span>
               <div className="grow">
                 <b>Calorías que le quedan</b>
                 <small>Le dice cuántas kcal y proteína le faltan, o le recuerda registrar si no ha anotado nada.</small>
@@ -165,7 +165,7 @@ export default function Reminders() {
             </div>
           ) : (
             <button className="btn primary block" disabled={ocupado} onClick={activar}>
-              {ocupado ? <Spinner /> : <span className="emoji">🔔</span>}
+              {ocupado ? <Spinner /> : <Icon name="campana" />}
               {guardado.activo ? 'Activar en este teléfono' : 'Activar recordatorios'}
             </button>
           )}

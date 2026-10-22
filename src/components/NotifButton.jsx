@@ -56,7 +56,7 @@ export default function NotifButton({ irAAjustes }) {
     await guardar({ activo: true });
     await enviarPrueba().catch(() => {});
     setPanel(false);
-    toast('🔔 Recordatorios activados');
+    toast('Recordatorios activados');
   });
 
   const desactivar = () => ejecutar(async () => {
@@ -106,8 +106,8 @@ export default function NotifButton({ irAAjustes }) {
               <>
                 <p className="muted">Le avisaremos en este teléfono:</p>
                 <ul className="bell-list">
-                  <li><span aria-hidden="true">💧</span> Agua: {horas.length ? horas.join(' · ') : 'sin horarios'}</li>
-                  <li><span aria-hidden="true">🍽️</span> Calorías que le quedan: {conf.calorias ?? 'sin horario'}</li>
+                  <li><Icon name="agua" /> Agua: {horas.length ? horas.join(' · ') : 'sin horarios'}</li>
+                  <li><Icon name="almuerzo" /> Calorías que le quedan: {conf.calorias ?? 'sin horario'}</li>
                 </ul>
                 <div className="grid2">
                   <button className="btn small" disabled={ocupado} onClick={probar}>Enviar prueba</button>
@@ -118,7 +118,7 @@ export default function NotifButton({ irAAjustes }) {
             )}
             {estado === 'ok' && !activo && (
               <button className="btn primary block" disabled={ocupado} onClick={activar}>
-                {ocupado ? <Spinner /> : <span className="emoji">🔔</span>} Activar recordatorios
+                {ocupado ? <Spinner /> : <Icon name="campana" />} Activar recordatorios
               </button>
             )}
             <ErrorBox>{error}</ErrorBox>

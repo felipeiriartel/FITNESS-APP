@@ -65,7 +65,7 @@ export default function Progress({ abrir, irAAjustes }) {
       <header className="page-head">
         <h1>Progreso</h1>
         <div className="head-actions">
-          <button className="btn small primary" onClick={() => abrir('peso')}>⚖️ Peso</button>
+          <button className="btn small primary" onClick={() => abrir('peso')}><Icon name="peso" size={18} /> Peso</button>
           <button className="icon-btn round" onClick={irAAjustes} aria-label="Ajustes" title="Ajustes"><Icon name="ajustes" /></button>
         </div>
       </header>

@@ -83,7 +83,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
           {fecha === hoy && r.actual > 0 ? (
             <span className={`streak-badge${r.hoyRegistrado ? '' : ' pendiente'}`}
               title={r.hoyRegistrado ? `Récord: ${r.mejor} días` : 'Registre algo hoy para mantener la racha'}>
-              <span aria-hidden="true">🔥</span>
+              <Icon name="racha" size={16} />
               <span className="num">{r.actual} {r.actual === 1 ? 'día' : 'días'}</span>
               {!r.hoyRegistrado && <span style={{ fontWeight: 600 }}>· registre hoy</span>}
             </span>
@@ -128,13 +128,13 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
       </section>
 
       <div className="log-grid">
-        <button className="btn primary" onClick={() => abrir('comida')}><span className="emoji" aria-hidden="true">📷</span>Foto</button>
-        <button className="btn" onClick={() => abrir('texto')}><span className="emoji" aria-hidden="true">✍️</span>Escribir</button>
-        <button className="btn" onClick={() => abrir('codigo')}><span className="emoji" aria-hidden="true">🔲</span>Código</button>
-        <button className="btn" onClick={() => abrir('favoritas')}><span className="emoji" aria-hidden="true">⭐</span>Frecuente</button>
+        <button className="btn primary" onClick={() => abrir('comida')}><Icon name="camara" size={26} />Foto</button>
+        <button className="btn" onClick={() => abrir('texto')}><Icon name="editar" size={26} />Escribir</button>
+        <button className="btn" onClick={() => abrir('codigo')}><Icon name="codigo" size={26} />Código</button>
+        <button className="btn" onClick={() => abrir('favoritas')}><Icon name="estrella" size={26} />Frecuente</button>
       </div>
       <button className="btn slim block" onClick={() => abrir('sugerir')}>
-        <span className="emoji" aria-hidden="true">💡</span> ¿Qué puedo comer ahora?
+        <Icon name="idea" size={20} /> ¿Qué puedo comer ahora?
       </button>
 
       {fecha === hoy && esLunes && <WeeklyCard semana="pasada" compacto onVerMas={irAProgreso} />}
@@ -146,7 +146,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
         </div>
         {!meals.length && (
           <div className="empty">
-            <span className="emoji">🍽️</span>
+            <Icon name="almuerzo" size={36} stroke={1.6} />
             Aún no hay comidas este día. Tome una foto de su plato para empezar.
           </div>
         )}
@@ -156,7 +156,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
           return (
             <div key={t.id} className="group">
               <div className="group-title">
-                <span><span aria-hidden="true">{t.emoji}</span>{t.label}</span>
+                <span><Icon name={t.icono} size={16} />{t.label}</span>
                 <span className="num">{fmt(grupo.reduce((s, m) => s + m.kcal, 0))} kcal</span>
               </div>
               <div className="list">
@@ -166,7 +166,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
                       {m.photo_path && fotos[m.photo_path] ? (
                         <img className="thumb" src={fotos[m.photo_path]} alt="" />
                       ) : (
-                        <span className="thumb" aria-hidden="true">{t.emoji}</span>
+                        <span className="thumb" aria-hidden="true"><Icon name={t.icono} /></span>
                       )}
                       <span className="grow">
                         <span className="item-title">{m.description}</span>
@@ -184,13 +184,13 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
           );
         })}
         <div className={meals.length ? 'card-foot' : undefined}>
-          <button className="btn small ghost block" onClick={() => abrir('copiar')}>📋 Copiar comidas de otro día</button>
+          <button className="btn small ghost block" onClick={() => abrir('copiar')}><Icon name="copiar" size={20} /> Copiar comidas de otro día</button>
         </div>
       </section>
 
       <section className="card stack">
         <div className="row between">
-          <div className="section-title"><span className="emoji" aria-hidden="true">💧</span><h2>Agua</h2></div>
+          <div className="section-title"><span className="badge agua"><Icon name="agua" size={18} /></span><h2>Agua</h2></div>
           <span><span className="water-value num">{fmt(aguaDia / 1000, 2)}</span> <small>/ {fmt(metas.agua / 1000, 1)} L</small></span>
         </div>
         <Bar value={aguaDia} max={metas.agua} color="var(--agua)" />
@@ -201,7 +201,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
 
       <section className="card">
         <div className="card-head">
-          <div className="section-title"><span className="emoji" aria-hidden="true">🏋️</span><h2>Ejercicio</h2></div>
+          <div className="section-title"><span className="badge ejercicio"><Icon name="ejercicio" size={18} /></span><h2>Ejercicio</h2></div>
           <button className="btn small" onClick={() => abrir('ejercicio')}><Icon name="mas" size={18} /> Agregar</button>
         </div>
         {!ejerciciosDia.length && <p className="muted">Sin ejercicio registrado este día.</p>}
@@ -209,7 +209,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
           {ejerciciosDia.map((e) => (
             <div className="list-item" key={e.id}>
               <button className="list-tap" onClick={() => abrir('ejercicio', { existente: e })} aria-label="Editar ejercicio">
-                <span className="thumb" aria-hidden="true">{EJERCICIOS[e.exercise_type]?.emoji ?? '✨'}</span>
+                <span className="thumb" aria-hidden="true"><Icon name={EJERCICIOS[e.exercise_type]?.icono ?? 'ia'} /></span>
                 <span className="grow">
                   <span className="item-title">{EJERCICIOS[e.exercise_type]?.label ?? e.exercise_type}</span>
                   <small>{e.duration_min} min, {e.intensity === 'baja' ? 'suave' : e.intensity === 'alta' ? 'intensa' : 'moderada'}{e.description ? `. ${e.description}` : ''}</small>
@@ -224,7 +224,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
 
       <section className="card row between">
         <div className="section-title">
-          <span className="emoji" aria-hidden="true">⚖️</span>
+          <span className="badge peso"><Icon name="peso" size={18} /></span>
           <div>
             <h2>Peso</h2>
             <small>{pesoDia ? `${fmt(pesoDia.weight_kg, 1)} kg${pesoDia.waist_cm ? `, cintura ${fmt(pesoDia.waist_cm, 1)} cm` : ''}` : 'Sin registro este día'}</small>

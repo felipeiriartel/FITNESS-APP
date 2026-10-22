@@ -16,22 +16,22 @@ export const NIVELES_ACTIVIDAD = {
 // Valores MET aproximados (Compendio de Actividades Físicas).
 // "futbol" es el partido en cancha grande; se conserva el id para los registros antiguos.
 export const EJERCICIOS = {
-  pesas: { emoji: '🏋️', label: 'Pesas / fuerza', met: { baja: 3.5, moderada: 5, alta: 6 } },
-  futbol: { emoji: '⚽', label: 'Fútbol (partido)', met: { baja: 7, moderada: 8.5, alta: 10 } },
-  pichanga: { emoji: '🥅', label: 'Futbolito / pichanga', met: { baja: 5.5, moderada: 7, alta: 8.5 } },
-  correr: { emoji: '🏃', label: 'Correr', met: { baja: 7, moderada: 9, alta: 11.5 } },
-  caminar: { emoji: '🚶', label: 'Caminar', met: { baja: 2.8, moderada: 3.5, alta: 5 } },
-  bicicleta: { emoji: '🚴', label: 'Bicicleta', met: { baja: 5.5, moderada: 7.5, alta: 10 } },
-  spinning: { emoji: '🚲', label: 'Spinning', met: { baja: 5.5, moderada: 7, alta: 9.5 } },
-  cardio: { emoji: '🫀', label: 'Elíptica / máquinas', met: { baja: 5, moderada: 6.5, alta: 8 } },
-  hiit: { emoji: '⚡', label: 'HIIT / funcional', met: { baja: 5.5, moderada: 8, alta: 10 } },
-  natacion: { emoji: '🏊', label: 'Natación', met: { baja: 6, moderada: 8, alta: 10 } },
-  raqueta: { emoji: '🎾', label: 'Tenis / pádel', met: { baja: 5, moderada: 6.5, alta: 8 } },
-  basquetbol: { emoji: '🏀', label: 'Básquetbol', met: { baja: 6, moderada: 7, alta: 8 } },
-  combate: { emoji: '🥊', label: 'Boxeo / artes marciales', met: { baja: 5.5, moderada: 7.5, alta: 10 } },
-  baile: { emoji: '💃', label: 'Baile', met: { baja: 4.5, moderada: 6, alta: 7.5 } },
-  yoga: { emoji: '🧘', label: 'Yoga / pilates', met: { baja: 2.5, moderada: 3, alta: 4 } },
-  otro: { emoji: '✨', label: 'Otro', met: { baja: 3, moderada: 5, alta: 7 } },
+  pesas: { icono: 'ejercicio', label: 'Pesas / fuerza', met: { baja: 3.5, moderada: 5, alta: 6 } },
+  futbol: { icono: 'balon', label: 'Fútbol (partido)', met: { baja: 7, moderada: 8.5, alta: 10 } },
+  pichanga: { icono: 'balon', label: 'Futbolito / pichanga', met: { baja: 5.5, moderada: 7, alta: 8.5 } },
+  correr: { icono: 'correr', label: 'Correr', met: { baja: 7, moderada: 9, alta: 11.5 } },
+  caminar: { icono: 'caminar', label: 'Caminar', met: { baja: 2.8, moderada: 3.5, alta: 5 } },
+  bicicleta: { icono: 'bici', label: 'Bicicleta', met: { baja: 5.5, moderada: 7.5, alta: 10 } },
+  spinning: { icono: 'bici', label: 'Spinning', met: { baja: 5.5, moderada: 7, alta: 9.5 } },
+  cardio: { icono: 'corazon', label: 'Elíptica / máquinas', met: { baja: 5, moderada: 6.5, alta: 8 } },
+  hiit: { icono: 'rayo', label: 'HIIT / funcional', met: { baja: 5.5, moderada: 8, alta: 10 } },
+  natacion: { icono: 'ondas', label: 'Natación', met: { baja: 6, moderada: 8, alta: 10 } },
+  raqueta: { icono: 'raqueta', label: 'Tenis / pádel', met: { baja: 5, moderada: 6.5, alta: 8 } },
+  basquetbol: { icono: 'balon', label: 'Básquetbol', met: { baja: 6, moderada: 7, alta: 8 } },
+  combate: { icono: 'guante', label: 'Boxeo / artes marciales', met: { baja: 5.5, moderada: 7.5, alta: 10 } },
+  baile: { icono: 'musica', label: 'Baile', met: { baja: 4.5, moderada: 6, alta: 7.5 } },
+  yoga: { icono: 'yoga', label: 'Yoga / pilates', met: { baja: 2.5, moderada: 3, alta: 4 } },
+  otro: { icono: 'ia', label: 'Otro', met: { baja: 3, moderada: 5, alta: 7 } },
 };
 
 /** Descripción de cada intensidad. La prueba del habla sirve para casi todo; las pesas tienen la suya. */
@@ -54,12 +54,12 @@ export function descripcionIntensidad(tipo) {
 }
 
 export const TIPOS_COMIDA = [
-  { id: 'desayuno', label: 'Desayuno', emoji: '🍳' },
-  { id: 'almuerzo', label: 'Almuerzo', emoji: '🍲' },
-  { id: 'once', label: 'Once', emoji: '☕' },
-  { id: 'cena', label: 'Cena', emoji: '🌙' },
-  { id: 'colacion', label: 'Colación', emoji: '🍎' },
-  { id: 'bebida', label: 'Bebida', emoji: '🥤' },
+  { id: 'desayuno', label: 'Desayuno', icono: 'desayuno' },
+  { id: 'almuerzo', label: 'Almuerzo', icono: 'almuerzo' },
+  { id: 'once', label: 'Once', icono: 'once' },
+  { id: 'cena', label: 'Cena', icono: 'cena' },
+  { id: 'colacion', label: 'Colación', icono: 'colacion' },
+  { id: 'bebida', label: 'Bebida', icono: 'bebida' },
 ];
 
 const round10 = (n) => Math.round(n / 10) * 10;
