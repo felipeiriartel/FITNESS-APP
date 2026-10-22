@@ -257,7 +257,7 @@ select {
 
 /* ---------- Barras ---------- */
 .bar { height: 8px; background: var(--s3); border-radius: 2px; overflow: hidden; }
-.bar > span { display: block; height: 100%; border-radius: 2px; transition: width 0.8s var(--ease-out); }
+.bar > span { display: block; height: 100%; border-radius: 2px; transform-origin: left; transition: transform 0.8s var(--ease-out); }
 .bar.thin { height: 6px; }
 
 /* ---------- Estados ---------- */
@@ -324,7 +324,7 @@ select {
 .water-ml input { padding-right: 36px; font-weight: 700; text-align: right; }
 .water-ml span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-weight: 600; pointer-events: none; }
 input[type='range'] {
-  -webkit-appearance: none; appearance: none; width: 100%; height: 34px; min-height: 0;
+  -webkit-appearance: none; appearance: none; width: 100%; height: 44px; min-height: 0;
   padding: 0; border: none; background: transparent; box-shadow: none; cursor: pointer;
 }
 input[type='range']:focus { box-shadow: none; }
@@ -555,9 +555,9 @@ details summary { cursor: pointer; color: var(--linea); font-weight: 650; min-he
 }
 .time-chip input[type="time"] {
   border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 1.05rem;
-  font-weight: 700; font-variant-numeric: tabular-nums; min-height: 38px; padding: 0; width: auto; box-shadow: none;
+  font-weight: 700; font-variant-numeric: tabular-nums; min-height: 44px; padding: 0; width: auto; box-shadow: none;
 }
-.time-chip .icon-btn { width: 40px; height: 40px; }
+.time-chip .icon-btn { width: 44px; height: 44px; }
 
 /* =====================================================================
    Celular
@@ -692,8 +692,8 @@ html { overscroll-behavior-y: none; }
 /* Línea del día */
 .linea-dia { position: relative; height: 52px; margin: 0 6px; }
 .ld-via { position: absolute; left: 0; right: 0; top: 12px; height: 6px; border-radius: 3px; background: var(--s3); overflow: hidden; }
-.ld-tramo { position: absolute; left: 0; top: 0; bottom: 0; background: var(--linea); border-radius: 3px; transition: width 1s var(--ease-out); }
-.ld-exceso { position: absolute; top: 0; bottom: 0; background: var(--aji); transition: width 1s var(--ease-out) 0.3s; }
+.ld-tramo { position: absolute; left: 0; top: 0; bottom: 0; background: var(--linea); border-radius: 3px; transform-origin: left; transition: transform 1s var(--ease-out); }
+.ld-exceso { position: absolute; top: 0; bottom: 0; background: var(--aji); transform-origin: left; transition: transform 1s var(--ease-out) 0.3s; }
 .ld-origen { position: absolute; left: -6px; top: 9px; width: 12px; height: 12px; border-radius: 50%; background: var(--linea); }
 .ld-estacion {
   position: absolute; top: 6px; transform: translateX(-50%);

@@ -261,14 +261,14 @@ function LineaDia({ meals, meta }) {
   }).filter(Boolean);
   const pctMeta = (meta / escala) * 100;
   const pctTotal = (total / escala) * 100;
-  const ancho = (p) => `${listo ? p : 0}%`;
+  const crece = listo ? undefined : 'scaleX(0)';
   const resumen = estaciones.length ? estaciones.map((e) => `${e.label} ${fmt(e.kcal)}`).join(', ') : 'sin comidas';
 
   return (
     <div className="linea-dia" role="img" aria-label={`Línea del día: ${fmt(total)} de ${fmt(meta)} kcal. ${resumen}.`}>
       <div className="ld-via">
-        <span className="ld-tramo" style={{ width: ancho(Math.min(pctTotal, pctMeta)) }} />
-        {total > meta && <span className="ld-exceso" style={{ left: `${pctMeta}%`, width: ancho(pctTotal - pctMeta) }} />}
+        <span className="ld-tramo" style={{ width: `${Math.min(pctTotal, pctMeta)}%`, transform: crece }} />
+        {total > meta && <span className="ld-exceso" style={{ left: `${pctMeta}%`, width: `${pctTotal - pctMeta}%`, transform: crece }} />}
       </div>
       <span className="ld-origen" aria-hidden="true" />
       {estaciones.map((e) => (

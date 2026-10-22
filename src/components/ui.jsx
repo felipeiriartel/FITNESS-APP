@@ -181,7 +181,7 @@ export function Bar({ value, max, color, thin }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
     <div className={`bar${thin ? ' thin' : ''}`} role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
-      <span style={{ width: `${listo ? pct : 0}%`, background: color }} />
+      <span style={{ width: `${pct}%`, transform: listo ? undefined : 'scaleX(0)', background: color }} />
     </div>
   );
 }
