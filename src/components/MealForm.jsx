@@ -249,7 +249,7 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
 
         {!inicial && conFoto && (foto ? (
           <div className="stack" style={{ gap: 6 }}>
-            <img src={foto.preview} alt="Foto de la comida" className="preview-img" />
+            <img src={foto.preview} alt="Foto de la comida" className={`preview-img${foto.guia ? ' circulo' : ''}`} />
             <div className="photo-change">
               <button className="btn small ghost" disabled={ocupado} onClick={abrirCamara}>📷 Otra foto</button>
               <button className="btn small ghost" disabled={ocupado} onClick={() => galeriaRef.current?.click()}>🖼️ De la galería</button>

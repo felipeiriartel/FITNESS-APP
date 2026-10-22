@@ -486,7 +486,9 @@ input[type='range']:focus-visible::-webkit-slider-thumb { outline: 3px solid var
 .photo-picks .photo-pick { min-height: 130px; padding: 10px; text-align: center; }
 .photo-picks .photo-pick b { font-size: 1rem; }
 .photo-change { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
-.preview-img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 20px; }
+.preview-img { display: block; width: 100%; max-height: 340px; object-fit: contain; border-radius: 20px; background: var(--surface-2); }
+.preview-img.circulo { width: min(260px, 80%); aspect-ratio: 1; max-height: none; margin: 0 auto; object-fit: cover; border-radius: 50%;
+  background: none; box-shadow: 0 0 0 4px var(--palta-soft); }
 .result-total { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; background: var(--surface-2); border-radius: 16px; padding: 12px 6px; }
 details { background: var(--surface-2); border-radius: 14px; padding: 12px 14px; }
 details summary { cursor: pointer; color: var(--palta); font-weight: 650; }
