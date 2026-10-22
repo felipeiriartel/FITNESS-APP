@@ -123,6 +123,8 @@ function Shell({ email }) {
   const cerrar = () => setAccion(null);
   const abrir = (id, datos) => setAccion({ id, datos });
   const a = accion?.id;
+  // Posición del indicador: las pestañas ocupan las columnas 0, 1, 3 y 4 (la 2 es el botón +).
+  const posTab = { hoy: 0, calendario: 1, ranking: 3, progreso: 4 }[tab] ?? -1;
 
   return (
     <>
@@ -138,6 +140,7 @@ function Shell({ email }) {
 
       <nav className="tabbar" aria-label="Secciones">
         <div className="tabbar-inner">
+          <span className={`tab-indicador${posTab < 0 ? ' oculto' : ''}`} style={{ '--i': Math.max(posTab, 0) }} aria-hidden="true" />
           {TABS.slice(0, 2).map((t) => <Tab key={t.id} t={t} on={tab === t.id} onClick={() => irA(t.id)} />)}
           <div className="fab-wrap">
             <button className="fab" aria-label="Registrar" aria-expanded={a === 'menu'} onClick={() => abrir('menu')}>
