@@ -5,6 +5,28 @@ import { TIPOS_COMIDA } from '../lib/calc.js';
 import { fmt, uuid } from '../lib/format.js';
 import { useData } from '../data.jsx';
 import { ErrorBox, Icon, Modal, Spinner, useToast } from './ui.jsx';
+import CameraCapture from './CameraCapture.jsx';
+
+const PREPARACION = [
+  { id: 'sin', label: 'Sin aceite ni mantequilla', texto: 'sin aceite ni mantequilla' },
+  { id: 'poco', label: 'Con poco aceite', texto: 'con poco aceite o mantequilla (alrededor de una cucharadita)' },
+  { id: 'bastante', label: 'Frito o con bastante aceite', texto: 'frito o con bastante aceite o mantequilla' },
+  { id: 'nose', label: 'No sé', texto: null },
+];
+
+/** Texto extra para la IA: escala de la foto guiada y forma de preparación. */
+function contextoExtra(foto, prep) {
+  const partes = [];
+  const g = foto?.guia;
+  if (g) {
+    partes.push(g.platoCm
+      ? `Foto tomada desde arriba con guía: el plato ocupa el círculo central y mide ${g.platoCm} cm de diámetro; el ancho total de la imagen equivale a unos ${g.anchoCm} cm. Use esa escala para estimar el tamaño y el volumen de cada porción.`
+      : 'Foto tomada desde arriba con el plato centrado y ocupando casi toda la imagen.');
+  }
+  const t = PREPARACION.find((x) => x.id === prep)?.texto;
+  if (t) partes.push(`Preparación indicada por la persona: ${t}.`);
+  return partes.join(' ');
+}
 
 export function tipoPorHora(d = new Date()) {
   const h = d.getHours();
@@ -53,6 +75,9 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
   const [guardarFav, setGuardarFav] = useState(false);
   const [estado, setEstado] = useState('editando'); // editando | analizando | guardando
   const [error, setError] = useState(null);
+  const [camara, setCamara] = useState(false); // cámara propia con círculo guía
+  const [camaraNativa, setCamaraNativa] = useState(false); // si la propia falló
+  const [prep, setPrep] = useState(null);
   const camaraRef = useRef(null);
   const galeriaRef = useRef(null);
 
@@ -78,6 +103,11 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
     }
   }
 
+  function abrirCamara() {
+    if (camaraNativa) camaraRef.current?.click();
+    else setCamara(true);
+  }
+
   async function analizar(conRespuestas = false) {
     if (!foto && !descripcion.trim()) {
       setError(conFoto ? 'Agregue una foto o describa el alimento.' : 'Escriba qué comió y en qué cantidad.');
@@ -89,7 +119,7 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
       body: {
         image_base64: foto?.base64,
         media_type: 'image/jpeg',
-        description: descripcion,
+        description: [descripcion.trim(), contextoExtra(foto, prep)].filter(Boolean).join('\n'),
         meal_type: TIPOS_COMIDA.find((t) => t.id === tipo)?.label,
         answers: conRespuestas ? respuestas : undefined,
       },
@@ -221,14 +251,14 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
           <div className="stack" style={{ gap: 6 }}>
             <img src={foto.preview} alt="Foto de la comida" className="preview-img" />
             <div className="photo-change">
-              <button className="btn small ghost" disabled={ocupado} onClick={() => camaraRef.current?.click()}>📷 Otra foto</button>
+              <button className="btn small ghost" disabled={ocupado} onClick={abrirCamara}>📷 Otra foto</button>
               <button className="btn small ghost" disabled={ocupado} onClick={() => galeriaRef.current?.click()}>🖼️ De la galería</button>
             </div>
           </div>
         ) : (
           <div className="stack" style={{ gap: 6 }}>
             <div className="photo-picks">
-              <button className="photo-pick" onClick={() => camaraRef.current?.click()}>
+              <button className="photo-pick" onClick={abrirCamara}>
                 <span className="emoji" aria-hidden="true">📷</span>
                 <b>Tomar foto</b>
               </button>
@@ -240,6 +270,28 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
             <small className="muted" style={{ textAlign: 'center' }}>Si hay etiqueta nutricional, fotografíela también</small>
           </div>
         ))}
+        {!inicial && (conFoto || descripcion.trim()) && (
+          <div className="stack" style={{ gap: 6 }}>
+            <small className="muted">¿Cómo se preparó? (el aceite no se ve en la foto)</small>
+            <div className="chips prep-chips" role="radiogroup" aria-label="Preparación">
+              {PREPARACION.map((x) => (
+                <button key={x.id} role="radio" aria-checked={prep === x.id} className={`chip${prep === x.id ? ' on' : ''}`}
+                  disabled={ocupado} onClick={() => setPrep(prep === x.id ? null : x.id)}>{x.label}</button>
+              ))}
+            </div>
+          </div>
+        )}
+        {camara && (
+          <CameraCapture
+            onClose={() => setCamara(false)}
+            onCapture={(f) => { setFoto(f); setError(null); setCamara(false); }}
+            onFallback={() => {
+              setCamara(false);
+              setCamaraNativa(true);
+              setError('No se pudo abrir la cámara con guía. Toque "Tomar foto" otra vez para usar la cámara del teléfono.');
+            }}
+          />
+        )}
         <input ref={camaraRef} type="file" accept="image/*" capture="environment" hidden onChange={elegirFoto} />
         <input ref={galeriaRef} type="file" accept="image/*" hidden onChange={elegirFoto} />
 
