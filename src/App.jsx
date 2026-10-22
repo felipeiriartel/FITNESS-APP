@@ -14,7 +14,7 @@ import BarcodeScanner from './components/BarcodeScanner.jsx';
 import Suggestions from './components/Suggestions.jsx';
 import CopyDay from './components/CopyDay.jsx';
 import { ExerciseForm, FavoritesPicker, ProfileForm, WeightForm } from './components/forms.jsx';
-import { ErrorBox, Icon, ToastProvider } from './components/ui.jsx';
+import { ErrorBox, Icon, Logo, ToastProvider } from './components/ui.jsx';
 
 export default function App() {
   const [session, setSession] = useState(undefined);
@@ -60,7 +60,7 @@ function Cargando({ texto }) {
   return (
     <div className="center-page">
       <div className="stack" style={{ alignItems: 'center' }}>
-        <img src="/icon.svg" alt="" width="64" height="64" />
+        <Logo alto={44} className="logo-cargando" />
         <p className="muted">{texto}</p>
       </div>
     </div>
@@ -99,7 +99,7 @@ function Shell({ email }) {
     return (
       <div className="app solo page">
         <div className="stack">
-          <div className="brand"><img src="/icon.svg" alt="" /><h1 className="welcome-title">Bienvenido a Comidia</h1></div>
+          <div className="brand"><Logo alto={40} /><h1 className="welcome-title">Bienvenido</h1></div>
           <p className="muted">Con estos datos calculamos su gasto diario y su meta de calorías y proteína. Puede cambiarlos cuando quiera.</p>
           <section className="card">
             <ProfileForm inicial={profile} conPeso textoBoton="Comenzar" />

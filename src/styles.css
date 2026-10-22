@@ -36,8 +36,8 @@
   --r-hero: 28px;
   --r-card: 20px;
   --r-ctl: 14px;
-  --font-display: 'Bricolage Grotesque', 'Figtree', system-ui, sans-serif;
-  --font-body: 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Big Shoulders', 'Arial Narrow', sans-serif;
+  --font-body: 'Atkinson Hyperlegible Next', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   color-scheme: light;
 }
@@ -780,3 +780,7 @@ html { overscroll-behavior-y: none; }
 .cam-shutter:disabled { opacity: 0.5; }
 .cam-shutter:active span { transform: scale(0.92); }
 .prep-chips { flex-wrap: wrap; }
+
+/* Logotipo */
+.logo { display: block; width: auto; overflow: visible; }
+.brand-lema { color: var(--muted); }

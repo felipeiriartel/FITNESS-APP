@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { ErrorBox } from '../components/ui.jsx';
+import { ErrorBox, Logo } from '../components/ui.jsx';
 
 export default function Auth() {
   const [modo, setModo] = useState('entrar'); // entrar | registrar | recuperar
@@ -30,11 +30,8 @@ export default function Auth() {
     <div className="center-page">
       <form className="auth card stack" onSubmit={enviar}>
         <div className="brand">
-          <img src="/icon.svg" alt="" />
-          <div>
-            <h1>Comidia</h1>
-            <small>Fotografíe su plato y sepa cuánto comió</small>
-          </div>
+          <h1><Logo alto={56} /></h1>
+          <p className="brand-lema">Fotografíe su plato y sepa cuánto comió</p>
         </div>
         <div className="seg">
           <button type="button" className={modo === 'entrar' ? 'on' : ''} onClick={() => setModo('entrar')}>Ingresar</button>
