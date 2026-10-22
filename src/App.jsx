@@ -14,7 +14,7 @@ import BarcodeScanner from './components/BarcodeScanner.jsx';
 import Suggestions from './components/Suggestions.jsx';
 import CopyDay from './components/CopyDay.jsx';
 import { ExerciseForm, FavoritesPicker, ProfileForm, WeightForm } from './components/forms.jsx';
-import { ErrorBox, Icon, ToastProvider } from './components/ui.jsx';
+import { ErrorBox, Icon, Logo, ToastProvider } from './components/ui.jsx';
 
 export default function App() {
   const [session, setSession] = useState(undefined);
@@ -60,7 +60,7 @@ function Cargando({ texto }) {
   return (
     <div className="center-page">
       <div className="stack" style={{ alignItems: 'center' }}>
-        <img src="/icon.svg" alt="" width="64" height="64" />
+        <Logo alto={44} className="logo-cargando" />
         <p className="muted">{texto}</p>
       </div>
     </div>
@@ -99,7 +99,7 @@ function Shell({ email }) {
     return (
       <div className="app solo page">
         <div className="stack">
-          <div className="brand"><img src="/icon.svg" alt="" /><h1 className="welcome-title">Bienvenido a Comidia</h1></div>
+          <div className="brand"><Logo alto={40} /><h1 className="welcome-title">Bienvenido</h1></div>
           <p className="muted">Con estos datos calculamos su gasto diario y su meta de calorías y proteína. Puede cambiarlos cuando quiera.</p>
           <section className="card">
             <ProfileForm inicial={profile} conPeso textoBoton="Comenzar" />
@@ -123,6 +123,8 @@ function Shell({ email }) {
   const cerrar = () => setAccion(null);
   const abrir = (id, datos) => setAccion({ id, datos });
   const a = accion?.id;
+  // Posición del indicador: las pestañas ocupan las columnas 0, 1, 3 y 4 (la 2 es el botón +).
+  const posTab = { hoy: 0, calendario: 1, ranking: 3, progreso: 4 }[tab] ?? -1;
 
   return (
     <>
@@ -138,6 +140,7 @@ function Shell({ email }) {
 
       <nav className="tabbar" aria-label="Secciones">
         <div className="tabbar-inner">
+          <span className={`tab-indicador${posTab < 0 ? ' oculto' : ''}`} style={{ '--i': Math.max(posTab, 0) }} aria-hidden="true" />
           {TABS.slice(0, 2).map((t) => <Tab key={t.id} t={t} on={tab === t.id} onClick={() => irA(t.id)} />)}
           <div className="fab-wrap">
             <button className="fab" aria-label="Registrar" aria-expanded={a === 'menu'} onClick={() => abrir('menu')}>

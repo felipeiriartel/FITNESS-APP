@@ -4,7 +4,7 @@ import { EJERCICIOS, ESTADOS, FACTOR_EJERCICIO, TIPOS_COMIDA, estadoDia, gastoDe
 import { addDays, formatCorto, formatLargo, fromISO, todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
-import { Bar, Icon, Macro, Pill, Ring, useToast } from '../components/ui.jsx';
+import { Bar, Icon, Macro, Pill, Vacio, useToast } from '../components/ui.jsx';
 import { useSwipe } from '../lib/useSwipe.js';
 import WaterInput from '../components/WaterInput.jsx';
 import { useFotos } from '../lib/useFotos.js';
@@ -65,7 +65,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
     <div className="stack" {...swipe}>
       <header className="page-head today-head">
         <div className="titles">
-          <h1 style={{ textTransform: 'capitalize' }}>
+          <h1>
             {fecha === hoy ? 'Hoy' : fecha === addDays(hoy, -1) ? 'Ayer' : fromISO(fecha).toLocaleDateString('es-CL', { weekday: 'long' })}
           </h1>
           <small>{fecha === hoy ? formatLargo(fecha) : <button className="link-hoy" onClick={() => irDia(diffHoy)}>{formatCorto(fecha)} · Volver a hoy</button>}</small>
@@ -78,35 +78,32 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
       </header>
 
       <div key={fecha} className={`stack ${dir.current}`}>
-      <section className="hero" aria-label="Resumen de calorías">
-        <div className="hero-top">
-          {fecha === hoy && r.actual > 0 ? (
-            <span className={`streak-badge${r.hoyRegistrado ? '' : ' pendiente'}`}
-              title={r.hoyRegistrado ? `Récord: ${r.mejor} días` : 'Registre algo hoy para mantener la racha'}>
-              <span aria-hidden="true">🔥</span>
-              <span className="num">{r.actual} {r.actual === 1 ? 'día' : 'días'}</span>
-              {!r.hoyRegistrado && <span style={{ fontWeight: 600 }}>· registre hoy</span>}
-            </span>
-          ) : <span />}
+      <section className="anden" aria-label="Resumen de calorías">
+        <div className="anden-top">
           <Pill estado={estado}>{ESTADOS[estado]}</Pill>
+          {fecha === hoy && r.actual > 0 && (
+            <span className={`racha${r.hoyRegistrado ? '' : ' pendiente'}`}
+              title={r.hoyRegistrado ? `Récord: ${r.mejor} días` : 'Registre algo hoy para mantener la racha'}>
+              <Icon name="racha" size={16} />
+              <span className="num">{r.actual} {r.actual === 1 ? 'día' : 'días'}</span>
+              {!r.hoyRegistrado && <span className="racha-aviso">· registre hoy</span>}
+            </span>
+          )}
         </div>
 
-        <div className="hero-main">
-          <Ring value={consumo.kcal} max={metas.meta} estado={estado === 'sin' ? 'ok' : estado}>
-            <span className="value num" style={{ color: restante < 0 ? 'var(--aji)' : undefined }}>
-              {fmt(Math.abs(restante))}
-            </span>
-            <span className="label">{restante < 0 ? 'kcal sobre la meta' : 'kcal disponibles'}</span>
-          </Ring>
-          <div className="hero-side">
-            <div className="stat-row"><span>Consumido</span><b className="num">{fmt(consumo.kcal)}</b></div>
-            <div className="stat-row"><span>Meta</span><b className="num">{fmt(metas.meta)}</b></div>
-            <div className="stat-row"><span>Gasto</span><b className="num">{fmt(gasto)}</b></div>
-            {extraEjercicio > 0 && (
-              <div className="stat-row ej"><span>Ejercicio</span><b className="num">+{fmt(extraEjercicio)}</b></div>
-            )}
-          </div>
-        </div>
+        <p className={`anden-cifra${restante < 0 ? ' sobre' : ''}`}>
+          <span className="anden-num num">{fmt(Math.abs(restante))}</span>
+          <span className="anden-unid">kcal<br />{restante < 0 ? 'sobre la meta' : 'le quedan'}</span>
+        </p>
+
+        <LineaDia meals={meals} meta={metas.meta} />
+
+        <dl className="anden-datos">
+          <div><dt>Consumido</dt><dd className="num">{fmt(consumo.kcal)}</dd></div>
+          <div><dt>Meta</dt><dd className="num">{fmt(metas.meta)}</dd></div>
+          <div><dt>Gasto</dt><dd className="num">{fmt(gasto)}</dd></div>
+          {extraEjercicio > 0 && <div className="ej"><dt>Ejercicio</dt><dd className="num">+{fmt(extraEjercicio)}</dd></div>}
+        </dl>
 
         <div className="day-balance">
           {fecha === hoy || !consumo.kcal ? (
@@ -120,35 +117,35 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
           )}
         </div>
 
-        <div className="hero-macros">
+        <div className="anden-macros">
           <Macro nombre="Proteína" value={consumo.protein_g} target={metas.proteina} color="var(--ciruela)" />
           <Macro nombre="Carbos" value={consumo.carbs_g} target={metas.carbos} color="var(--zapallo)" />
           <Macro nombre="Grasas" value={consumo.fat_g} target={metas.grasa} color="var(--aceite)" />
         </div>
       </section>
 
-      <div className="log-grid">
-        <button className="btn primary" onClick={() => abrir('comida')}><span className="emoji" aria-hidden="true">📷</span>Foto</button>
-        <button className="btn" onClick={() => abrir('texto')}><span className="emoji" aria-hidden="true">✍️</span>Escribir</button>
-        <button className="btn" onClick={() => abrir('codigo')}><span className="emoji" aria-hidden="true">🔲</span>Código</button>
-        <button className="btn" onClick={() => abrir('favoritas')}><span className="emoji" aria-hidden="true">⭐</span>Frecuente</button>
+      <div className="log-grid" aria-label="Registrar">
+        <button className="btn primary" onClick={() => abrir('comida')}><Icon name="camara" size={26} />Foto</button>
+        <button className="btn" onClick={() => abrir('texto')}><Icon name="editar" size={24} />Escribir</button>
+        <button className="btn" onClick={() => abrir('codigo')}><Icon name="codigo" size={24} />Código</button>
+        <button className="btn" onClick={() => abrir('favoritas')}><Icon name="estrella" size={24} />Frecuente</button>
       </div>
-      <button className="btn slim block" onClick={() => abrir('sugerir')}>
-        <span className="emoji" aria-hidden="true">💡</span> ¿Qué puedo comer ahora?
+      <button className="btn block sugerir" onClick={() => abrir('sugerir')}>
+        <Icon name="idea" size={20} /> ¿Qué puedo comer ahora?
       </button>
 
       {fecha === hoy && esLunes && <WeeklyCard semana="pasada" compacto onVerMas={irAProgreso} />}
 
-      <section className="card">
-        <div className="card-head" style={{ marginBottom: 4 }}>
+      <section className="card comidas">
+        <div className="card-head">
           <h2>Comidas</h2>
-          {meals.length > 0 && <span className="num muted" style={{ fontWeight: 700 }}>{fmt(consumo.kcal)} kcal</span>}
+          {meals.length > 0 && <span className="card-total num">{fmt(consumo.kcal)} <small>kcal</small></span>}
         </div>
         {!meals.length && (
-          <div className="empty">
-            <span className="emoji">🍽️</span>
-            Aún no hay comidas este día. Tome una foto de su plato para empezar.
-          </div>
+          <Vacio img="/img/vacio-comidas.webp" titulo={fecha === hoy ? 'Su plato está vacío' : 'Sin comidas este día'}
+            texto="Tome una foto de su plato: la IA calcula calorías y proteína, y usted ajusta antes de guardar.">
+            <button className="btn primary" onClick={() => abrir('comida')}><Icon name="camara" size={20} /> Registrar con foto</button>
+          </Vacio>
         )}
         {TIPOS_COMIDA.map((t) => {
           const grupo = meals.filter((m) => m.meal_type === t.id);
@@ -156,7 +153,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
           return (
             <div key={t.id} className="group">
               <div className="group-title">
-                <span><span aria-hidden="true">{t.emoji}</span>{t.label}</span>
+                <span><Icon name={t.icono} size={16} />{t.label}</span>
                 <span className="num">{fmt(grupo.reduce((s, m) => s + m.kcal, 0))} kcal</span>
               </div>
               <div className="list">
@@ -166,7 +163,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
                       {m.photo_path && fotos[m.photo_path] ? (
                         <img className="thumb" src={fotos[m.photo_path]} alt="" />
                       ) : (
-                        <span className="thumb" aria-hidden="true">{t.emoji}</span>
+                        <span className="thumb" aria-hidden="true"><Icon name={t.icono} /></span>
                       )}
                       <span className="grow">
                         <span className="item-title">{m.description}</span>
@@ -184,14 +181,14 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
           );
         })}
         <div className={meals.length ? 'card-foot' : undefined}>
-          <button className="btn small ghost block" onClick={() => abrir('copiar')}>📋 Copiar comidas de otro día</button>
+          <button className="btn small ghost block" onClick={() => abrir('copiar')}><Icon name="copiar" size={20} /> Copiar comidas de otro día</button>
         </div>
       </section>
 
       <section className="card stack">
         <div className="row between">
-          <div className="section-title"><span className="emoji" aria-hidden="true">💧</span><h2>Agua</h2></div>
-          <span><span className="water-value num">{fmt(aguaDia / 1000, 2)}</span> <small>/ {fmt(metas.agua / 1000, 1)} L</small></span>
+          <div className="section-title"><span className="badge agua"><Icon name="agua" size={18} /></span><h2>Agua</h2></div>
+          <span className="water-total"><span className="water-value num">{fmt(aguaDia / 1000, 2)}</span> <small className="num">/ {fmt(metas.agua / 1000, 1)} L</small></span>
         </div>
         <Bar value={aguaDia} max={metas.agua} color="var(--agua)" />
         <WaterInput fecha={fecha} />
@@ -201,15 +198,15 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
 
       <section className="card">
         <div className="card-head">
-          <div className="section-title"><span className="emoji" aria-hidden="true">🏋️</span><h2>Ejercicio</h2></div>
+          <div className="section-title"><span className="badge ejercicio"><Icon name="ejercicio" size={18} /></span><h2>Ejercicio</h2></div>
           <button className="btn small" onClick={() => abrir('ejercicio')}><Icon name="mas" size={18} /> Agregar</button>
         </div>
-        {!ejerciciosDia.length && <p className="muted">Sin ejercicio registrado este día.</p>}
+        {!ejerciciosDia.length && <p className="muted">Sin ejercicio este día. Pesas, pichanga o una caminata también suman a su meta.</p>}
         <div className="list">
           {ejerciciosDia.map((e) => (
             <div className="list-item" key={e.id}>
               <button className="list-tap" onClick={() => abrir('ejercicio', { existente: e })} aria-label="Editar ejercicio">
-                <span className="thumb" aria-hidden="true">{EJERCICIOS[e.exercise_type]?.emoji ?? '✨'}</span>
+                <span className="thumb" aria-hidden="true"><Icon name={EJERCICIOS[e.exercise_type]?.icono ?? 'ia'} /></span>
                 <span className="grow">
                   <span className="item-title">{EJERCICIOS[e.exercise_type]?.label ?? e.exercise_type}</span>
                   <small>{e.duration_min} min, {e.intensity === 'baja' ? 'suave' : e.intensity === 'alta' ? 'intensa' : 'moderada'}{e.description ? `. ${e.description}` : ''}</small>
@@ -222,17 +219,65 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
         </div>
       </section>
 
-      <section className="card row between">
-        <div className="section-title">
-          <span className="emoji" aria-hidden="true">⚖️</span>
-          <div>
+      <section className="card peso-dia">
+        <div className="section-title grow">
+          <span className="badge peso"><Icon name="peso" size={18} /></span>
+          <div className="grow">
             <h2>Peso</h2>
-            <small>{pesoDia ? `${fmt(pesoDia.weight_kg, 1)} kg${pesoDia.waist_cm ? `, cintura ${fmt(pesoDia.waist_cm, 1)} cm` : ''}` : 'Sin registro este día'}</small>
+            {pesoDia ? (
+              <p className="peso-cifra"><b className="num">{fmt(pesoDia.weight_kg, 1)}</b> kg{pesoDia.waist_cm ? <small className="num"> · cintura {fmt(pesoDia.waist_cm, 1)} cm</small> : null}</p>
+            ) : <small>Sin pesaje este día. Pésese en la mañana, antes de comer.</small>}
           </div>
         </div>
-        <button className="btn small" onClick={() => abrir('peso')}>{pesoDia ? 'Editar' : 'Registrar'}</button>
+        <button className={`btn small${pesoDia ? '' : ' primary'}`} onClick={() => abrir('peso')}>{pesoDia ? <><Icon name="editar" size={18} /> Editar</> : 'Registrar'}</button>
       </section>
       </div>
+    </div>
+  );
+}
+
+/**
+ * La línea del día: cada estación marca dónde lo dejó cada comida (kcal acumuladas)
+ * y la meta es la terminal. Si se pasa, el tramo sobrante va en rojo.
+ */
+function LineaDia({ meals, meta }) {
+  const [listo, setListo] = useState(false);
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setListo(true));
+    return () => cancelAnimationFrame(t);
+  }, []);
+  const total = meals.reduce((s, m) => s + m.kcal, 0);
+  const escala = Math.max(meta, total) || 1;
+  let acum = 0;
+  let ultimoConIcono = -100;
+  const estaciones = TIPOS_COMIDA.map((t) => {
+    const kcal = meals.filter((m) => m.meal_type === t.id).reduce((s, m) => s + m.kcal, 0);
+    if (!kcal) return null;
+    acum += kcal;
+    const pct = (acum / escala) * 100;
+    const conIcono = pct - ultimoConIcono >= 11;
+    if (conIcono) ultimoConIcono = pct;
+    return { ...t, kcal, pct, conIcono };
+  }).filter(Boolean);
+  const pctMeta = (meta / escala) * 100;
+  const pctTotal = (total / escala) * 100;
+  const crece = listo ? undefined : 'scaleX(0)';
+  const resumen = estaciones.length ? estaciones.map((e) => `${e.label} ${fmt(e.kcal)}`).join(', ') : 'sin comidas';
+
+  return (
+    <div className="linea-dia" role="img" aria-label={`Línea del día: ${fmt(total)} de ${fmt(meta)} kcal. ${resumen}.`}>
+      <div className="ld-via">
+        <span className="ld-tramo" style={{ width: `${Math.min(pctTotal, pctMeta)}%`, transform: crece }} />
+        {total > meta && <span className="ld-exceso" style={{ left: `${pctMeta}%`, width: `${pctTotal - pctMeta}%`, transform: crece }} />}
+      </div>
+      <span className="ld-origen" aria-hidden="true" />
+      {estaciones.map((e) => (
+        <span key={e.id} className={`ld-estacion${listo ? ' lista' : ''}`} style={{ left: `${e.pct}%` }} aria-hidden="true">
+          <i />
+          {e.conIcono && <Icon name={e.icono} size={16} />}
+        </span>
+      ))}
+      <span className="ld-meta" style={{ left: `${pctMeta}%` }} aria-hidden="true"><i />Meta</span>
     </div>
   );
 }

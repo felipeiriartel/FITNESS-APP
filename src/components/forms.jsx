@@ -30,7 +30,7 @@ export function FavoritesPicker({ fecha, onClose }) {
     });
     setOcupado(false);
     if (e) return setError(e.message);
-    toast(`⭐ ${f.name} registrada`);
+    toast(`${f.name} registrada`);
     await reload();
     onClose();
   }
@@ -41,14 +41,14 @@ export function FavoritesPicker({ fecha, onClose }) {
         <div className="chips scroll" role="radiogroup" aria-label="Registrar como">
           {TIPOS_COMIDA.map((t) => (
             <button key={t.id} role="radio" aria-checked={tipo === t.id} className={`chip${tipo === t.id ? ' on' : ''}`} onClick={() => setTipo(t.id)}>
-              <span className="emoji" aria-hidden="true">{t.emoji}</span>{t.label}
+              <Icon name={t.icono} size={20} />{t.label}
             </button>
           ))}
         </div>
         <ErrorBox>{error}</ErrorBox>
         {!favorites.length && (
           <div className="empty">
-            <span className="emoji">⭐</span>
+            <Icon name="estrella" size={36} stroke={1.6} />
             Aún no tiene comidas frecuentes. Al registrar una comida, marque “Guardar como comida frecuente” antes de guardarla.
           </div>
         )}
@@ -57,7 +57,7 @@ export function FavoritesPicker({ fecha, onClose }) {
             <div className="list-item" key={f.id}>
               {f.photo_path && fotos[f.photo_path]
                 ? <img className="thumb" src={fotos[f.photo_path]} alt="" />
-                : <div className="thumb" aria-hidden="true">{TIPOS_COMIDA.find((t) => t.id === f.meal_type)?.emoji ?? '⭐'}</div>}
+                : <div className="thumb" aria-hidden="true"><Icon name={TIPOS_COMIDA.find((t) => t.id === f.meal_type)?.icono ?? 'estrella'} /></div>}
               <div className="grow">
                 <div className="item-title">{f.name}</div>
                 <small className="num">{fmt(f.kcal)} kcal, {fmt(f.protein_g)} g de proteína</small>
@@ -143,7 +143,7 @@ export function ExerciseForm({ fecha, onClose, existente }) {
     setOcupado(false);
     if (e) return setError(e.message);
     const ej = EJERCICIOS[tipo] ?? EJERCICIOS.otro;
-    toast(existente ? `${ej.emoji} Ejercicio actualizado` : `${ej.emoji} ${ej.label}: ${m} min, ${kcal} kcal`);
+    toast(existente ? 'Ejercicio actualizado' : `${ej.label}: ${m} min, ${kcal} kcal`);
     await reload();
     onClose();
   }
@@ -172,7 +172,7 @@ export function ExerciseForm({ fecha, onClose, existente }) {
             <div className="chips compact scroll">
               {recientes.map((e) => (
                 <button key={e.id} className="chip" onClick={() => usarReciente(e)}>
-                  <span className="emoji" aria-hidden="true">{EJERCICIOS[e.exercise_type]?.emoji ?? '✨'}</span>
+                  <Icon name={EJERCICIOS[e.exercise_type]?.icono ?? 'ia'} size={20} />
                   {EJERCICIOS[e.exercise_type]?.label ?? e.exercise_type}, {e.duration_min} min
                 </button>
               ))}
@@ -187,11 +187,11 @@ export function ExerciseForm({ fecha, onClose, existente }) {
               .filter(([id]) => todosLosTipos || TIPOS_PRINCIPALES.includes(id) || id === tipo)
               .map(([id, e]) => (
                 <button key={id} role="radio" aria-checked={tipo === id} className={tipo === id ? 'on' : ''} onClick={() => setTipo(id)}>
-                  <span className="emoji" aria-hidden="true">{e.emoji}</span>{e.label}
+                  <Icon name={e.icono} size={24} />{e.label}
                 </button>
               ))}
             {!todosLosTipos && (
-              <button className="mas" onClick={() => setTodosLosTipos(true)}><span className="emoji" aria-hidden="true">＋</span>Más tipos</button>
+              <button className="mas" onClick={() => setTodosLosTipos(true)}><Icon name="mas" size={24} />Más tipos</button>
             )}
           </div>
         </div>
@@ -236,7 +236,7 @@ export function ExerciseForm({ fecha, onClose, existente }) {
           <small className="muted">¿Cómo calcular las calorías?</small>
           <div className="seg">
             <button className={modo === 'estimar' ? 'on' : ''} onClick={() => setModo('estimar')}>Estimar</button>
-            <button className={modo === 'reloj' ? 'on' : ''} onClick={() => setModo('reloj')}>⌚ Usar mi reloj</button>
+            <button className={modo === 'reloj' ? 'on' : ''} onClick={() => setModo('reloj')}><Icon name="reloj" size={20} /> Usar mi reloj</button>
           </div>
           {modo === 'reloj' && (
             <label className="field">
@@ -280,7 +280,7 @@ export function WeightForm({ fecha = todayISO(), onClose }) {
       .upsert({ user_id: userId, log_date: dia, weight_kg: p, waist_cm: c }, { onConflict: 'user_id,log_date' });
     setOcupado(false);
     if (e) return setError(e.message);
-    toast(`⚖️ ${fmt(p, 1)} kg registrados`);
+    toast(`${fmt(p, 1)} kg registrados`);
     await reload();
     onClose();
   }

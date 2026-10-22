@@ -1,0 +1,19 @@
+{
+  "name": "Comidia · Línea de Metro",
+  "mode": "dark",
+  "color": {
+    "bg": "#050605", "s1": "#0d0f0e", "s2": "#151816", "s3": "#1f2320",
+    "line": "#262a27", "line2": "#3b413d",
+    "ink": "#f4f6f3", "muted": "#a7b0a9", "dim": "#868f88",
+    "linea": "#33e07c", "onLinea": "#03140a", "choclo": "#ffd23f",
+    "ciruela": "#c792f2", "zapallo": "#ff9f45", "aceite": "#43c9dc",
+    "aji": "#ff6352", "cielo": "#8fb1ff", "agua": "#58aefc"
+  },
+  "type": {
+    "display": "Big Shoulders", "body": "Atkinson Hyperlegible Next", "baseSize": "17px"
+  },
+  "radius": { "blk": "16px", "card": "14px", "ctl": "10px", "chip": "8px" },
+  "space": ["4px", "8px", "12px", "16px", "24px", "32px"],
+  "motion": { "ease": "cubic-bezier(0.16, 1, 0.3, 1)", "fast": "140ms", "medium": "260ms" },
+  "minTouch": "44px"
+}

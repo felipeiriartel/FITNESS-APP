@@ -28,7 +28,7 @@ export default function WaterInput({ fecha }) {
     const { error } = await supabase.from('water_logs').insert({ user_id: userId, log_date: fecha, ml: valor });
     setOcupado(false);
     if (error) return toast(error.message, 'error');
-    toast(`💧 ${etiqueta(valor)} de agua registrados`);
+    toast(`${etiqueta(valor)} de agua registrados`);
     setOtra(false);
     reload();
   }

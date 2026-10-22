@@ -192,7 +192,7 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
         });
         if (e2) throw e2;
       }
-      toast(editar ? `✅ ${desc} actualizada` : `✅ ${desc}: ${fila.kcal} kcal registradas`);
+      toast(editar ? `${desc} actualizada` : `${desc}: ${fila.kcal} kcal registradas`);
       await reload();
       onClose(true);
     } catch (e) {
@@ -231,7 +231,7 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
       <button className="btn primary big block" disabled={ocupado} onClick={() => analizar(false)}>
         {estado === 'analizando'
           ? <><Spinner /> {conFoto ? 'Analizando su plato…' : 'Calculando…'}</>
-          : <><span className="emoji" aria-hidden="true">✨</span> {conFoto ? 'Analizar con IA' : 'Calcular con IA'}</>}
+          : <><Icon name="ia" /> {conFoto ? 'Analizar con IA' : 'Calcular con IA'}</>}
       </button>
     );
   }
@@ -242,7 +242,7 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
         <div className="chips scroll" role="radiogroup" aria-label="Tipo de comida">
           {TIPOS_COMIDA.map((t) => (
             <button key={t.id} role="radio" aria-checked={tipo === t.id} className={`chip${tipo === t.id ? ' on' : ''}`} onClick={() => setTipo(t.id)}>
-              <span className="emoji" aria-hidden="true">{t.emoji}</span>{t.label}
+              <Icon name={t.icono} size={20} />{t.label}
             </button>
           ))}
         </div>
@@ -251,19 +251,19 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
           <div className="stack" style={{ gap: 6 }}>
             <img src={foto.preview} alt="Foto de la comida" className={`preview-img${foto.guia ? ' circulo' : ''}`} />
             <div className="photo-change">
-              <button className="btn small ghost" disabled={ocupado} onClick={abrirCamara}>📷 Otra foto</button>
-              <button className="btn small ghost" disabled={ocupado} onClick={() => galeriaRef.current?.click()}>🖼️ De la galería</button>
+              <button className="btn small ghost" disabled={ocupado} onClick={abrirCamara}><Icon name="camara" size={20} /> Otra foto</button>
+              <button className="btn small ghost" disabled={ocupado} onClick={() => galeriaRef.current?.click()}><Icon name="galeria" size={20} /> De la galería</button>
             </div>
           </div>
         ) : (
           <div className="stack" style={{ gap: 6 }}>
             <div className="photo-picks">
               <button className="photo-pick" onClick={abrirCamara}>
-                <span className="emoji" aria-hidden="true">📷</span>
+                <Icon name="camara" size={34} stroke={1.8} />
                 <b>Tomar foto</b>
               </button>
               <button className="photo-pick" onClick={() => galeriaRef.current?.click()}>
-                <span className="emoji" aria-hidden="true">🖼️</span>
+                <Icon name="galeria" size={34} stroke={1.8} />
                 <b>Elegir de la galería</b>
               </button>
             </div>
@@ -308,7 +308,7 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
             <div className="stack" style={{ gap: 8 }}>
               {items.length > 0 && (
                 <button className="btn block" disabled={ocupado} onClick={() => analizar(false)}>
-                  {estado === 'analizando' ? <><Spinner /> Analizando…</> : <><span className="emoji" aria-hidden="true">✨</span> {resultado ? 'Volver a analizar' : 'Analizar con IA'}</>}
+                  {estado === 'analizando' ? <><Spinner /> Analizando…</> : <><Icon name="ia" /> {resultado ? 'Volver a analizar' : 'Analizar con IA'}</>}
                 </button>
               )}
               {!items.length && (

@@ -4,7 +4,7 @@ import { TIPOS_COMIDA } from '../lib/calc.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
 import { tipoPorHora } from './MealForm.jsx';
-import { ErrorBox, Modal, Spinner } from './ui.jsx';
+import { ErrorBox, Icon, Modal, Spinner } from './ui.jsx';
 
 /** "¿Qué puedo comer?": la IA propone 3 comidas que calzan con lo que queda del día. */
 export default function Suggestions({ fecha, onClose, abrir }) {
@@ -64,7 +64,7 @@ export default function Suggestions({ fecha, onClose, abrir }) {
         <div className="chips scroll" role="radiogroup" aria-label="Para qué comida">
           {TIPOS_COMIDA.filter((t) => t.id !== 'bebida').map((t) => (
             <button key={t.id} role="radio" aria-checked={tipo === t.id} className={`chip${tipo === t.id ? ' on' : ''}`} onClick={() => setTipo(t.id)}>
-              <span className="emoji" aria-hidden="true">{t.emoji}</span>{t.label}
+              <Icon name={t.icono} size={20} />{t.label}
             </button>
           ))}
         </div>
@@ -74,7 +74,7 @@ export default function Suggestions({ fecha, onClose, abrir }) {
             placeholder="Ej: tengo pollo y arroz" maxLength={300} />
         </label>
         <button className="btn primary big block" disabled={cargando} onClick={sugerir}>
-          {cargando ? <><Spinner /> Pensando opciones…</> : <><span className="emoji" aria-hidden="true">💡</span> {lista ? 'Otras opciones' : 'Darme ideas'}</>}
+          {cargando ? <><Spinner /> Pensando opciones…</> : <><Icon name="ia" /> {lista ? 'Otras opciones' : 'Darme ideas'}</>}
         </button>
         <ErrorBox>{error}</ErrorBox>
 

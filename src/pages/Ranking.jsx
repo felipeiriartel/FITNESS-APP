@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { MESES, todayISO } from '../lib/dates.js';
 import { useData } from '../data.jsx';
-import { Icon, Spinner } from '../components/ui.jsx';
+import { Icon, Spinner, Vacio } from '../components/ui.jsx';
 
 const CADA_MS = 20000; // se actualiza cada 20 segundos mientras está abierta
 
 const iniciales = (n) => n.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
-const COLORES = ['#7b3f9e', '#dd7a14', '#2b8a9e', '#3e74c9', '#b5476b', '#5b7f2a', '#8a5a2b'];
+const COLORES = ['#c792f2', '#ff9f45', '#43c9dc', '#8fb1ff', '#ff7aa8', '#b8e05a', '#e0b07a'];
 const colorDe = (n) => COLORES[[...n].reduce((s, c) => s + c.charCodeAt(0), 0) % COLORES.length];
 
 function mesAnterior(iso) {
@@ -101,21 +101,22 @@ export default function Ranking() {
         </span>
       </header>
 
-      <section className="prize" aria-label="Líder del mes">
-        <svg className="prize-trophy" viewBox="0 0 64 64" aria-hidden="true">
-          <path d="M18 8h28v14c0 10-6 17-14 17S18 32 18 22z" fill="#f2be22" />
-          <path d="M18 12h-8c0 9 4 13 10 14M46 12h8c0 9-4 13-10 14" fill="none" stroke="#f2be22" strokeWidth="4" strokeLinecap="round" />
-          <path d="M28 38h8v9h-8z" fill="#d9a514" />
-          <rect x="19" y="46" width="26" height="9" rx="3" fill="#f2be22" />
-        </svg>
-        <div className="grow">
-          <small>Líder del mes</small>
-          <b>{tituloLider(filas, conPuntos)}</b>
-          <span>{textoLider(filas, conPuntos)}</span>
-        </div>
-      </section>
+      {filas !== null && !conPuntos && !error ? (
+        <section className="card lider-vacio" aria-label="Líder del mes">
+          <Vacio img="/img/vacio-ranking.webp" titulo="Nadie suma puntos todavía"
+            texto="Cada día dentro de su meta suma 2 puntos. Registre lo que come hoy y parte primero." />
+        </section>
+      ) : (
+        <section className="lider" aria-label="Líder del mes">
+          <Icon name="corona" size={34} className="lider-corona" />
+          <div className="grow">
+            <h2 className="lider-nombre">{tituloLider(filas, conPuntos)}</h2>
+            <p>{textoLider(filas, conPuntos)}</p>
+          </div>
+        </section>
+      )}
 
-      {mensaje && <div className="alert info rank-msg">{mensaje}</div>}
+      {mensaje && conPuntos && <div className="alert info rank-msg">{mensaje}</div>}
       {error && <div className="alert warn">{error}</div>}
 
       {!(error && !filas?.length) && <section className="card rank-card" aria-label="Tabla del mes">

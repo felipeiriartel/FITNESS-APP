@@ -5,7 +5,7 @@ import { buscarProducto, tieneNutricion } from '../lib/openfoodfacts.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
 import { tipoPorHora } from './MealForm.jsx';
-import { ErrorBox, Modal, Spinner, useToast } from './ui.jsx';
+import { ErrorBox, Icon, Modal, Spinner, useToast } from './ui.jsx';
 
 const r1 = (n) => Math.round(n * 10) / 10;
 
@@ -143,7 +143,7 @@ export default function BarcodeScanner({ fecha, onClose, abrir }) {
     }
     setOcupado(false);
     if (e1) return setError(e1.message);
-    toast(`✅ ${producto.nombre}: ${calc.kcal} kcal registradas`);
+    toast(`${producto.nombre}: ${calc.kcal} kcal registradas`);
     await reload();
     onClose();
   }
@@ -168,7 +168,7 @@ export default function BarcodeScanner({ fecha, onClose, abrir }) {
             )}
             <ErrorBox>{error}</ErrorBox>
             <button className="btn block" onClick={() => fotoRef.current?.click()}>
-              <span className="emoji" aria-hidden="true">🖼️</span> Leer el código desde una foto
+              <Icon name="galeria" /> Leer el código desde una foto
             </button>
             <input ref={fotoRef} type="file" accept="image/*" hidden onChange={leerFoto} />
             <div className="row">
@@ -180,13 +180,13 @@ export default function BarcodeScanner({ fecha, onClose, abrir }) {
         )}
 
         {fase === 'buscando' && (
-          <div className="empty"><span className="emoji">🔎</span>Buscando el producto…</div>
+          <div className="empty"><Spinner />Buscando el producto…</div>
         )}
 
         {fase === 'noEncontrado' && (
           <div className="stack">
             <div className="empty">
-              <span className="emoji">🤔</span>
+              <Icon name="buscar" size={40} stroke={1.6} />
               {producto?.sinNutricion
                 ? <>Encontramos <b>{producto.nombre}</b>, pero no tiene información nutricional registrada.</>
                 : <>El código {producto?.codigo} no está en la base de productos.</>}
@@ -195,7 +195,7 @@ export default function BarcodeScanner({ fecha, onClose, abrir }) {
               Fotografíe la tabla nutricional del envase y la IA la leerá por usted.
             </p>
             <button className="btn primary big block" onClick={() => abrir('comida')}>
-              <span className="emoji" aria-hidden="true">📷</span> Fotografiar la etiqueta
+              <Icon name="camara" /> Fotografiar la etiqueta
             </button>
             <button className="btn ghost block" onClick={() => { setProducto(null); setFase('camara'); }}>Escanear otro código</button>
           </div>
@@ -206,7 +206,7 @@ export default function BarcodeScanner({ fecha, onClose, abrir }) {
             <div className="row" style={{ alignItems: 'flex-start' }}>
               {producto.imagen
                 ? <img className="thumb" src={producto.imagen} alt="" style={{ objectFit: 'contain', background: '#fff' }} />
-                : <div className="thumb" aria-hidden="true">📦</div>}
+                : <div className="thumb" aria-hidden="true"><Icon name="paquete" /></div>}
               <div className="grow">
                 <h3>{producto.nombre}</h3>
                 <small>{[producto.marca, producto.cantidadEnvase].filter(Boolean).join(', ')}</small>
@@ -242,7 +242,7 @@ export default function BarcodeScanner({ fecha, onClose, abrir }) {
             <div className="chips scroll" role="radiogroup" aria-label="Tipo de comida">
               {TIPOS_COMIDA.map((t) => (
                 <button key={t.id} role="radio" aria-checked={tipo === t.id} className={`chip${tipo === t.id ? ' on' : ''}`} onClick={() => setTipo(t.id)}>
-                  <span className="emoji" aria-hidden="true">{t.emoji}</span>{t.label}
+                  <Icon name={t.icono} size={20} />{t.label}
                 </button>
               ))}
             </div>
