@@ -295,6 +295,18 @@ export function Logo({ className, alto = 32 }) {
   );
 }
 
+/** Estado vacío con ilustración, una frase útil y, si corresponde, la acción que lo resuelve. */
+export function Vacio({ img, titulo, texto, children }) {
+  return (
+    <div className="vacio">
+      <img src={img} alt="" width="168" height="168" loading="lazy" decoding="async" />
+      <b>{titulo}</b>
+      <p>{texto}</p>
+      {children}
+    </div>
+  );
+}
+
 export function Pill({ estado, children }) {
   return <span className={`pill ${estado}`}>{children}</span>;
 }

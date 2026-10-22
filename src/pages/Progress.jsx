@@ -6,7 +6,7 @@ import { fmt, fmtKg, fmtSigno } from '../lib/format.js';
 import { useData } from '../data.jsx';
 import LineChart from '../components/LineChart.jsx';
 import { ComoMedir } from '../components/forms.jsx';
-import { Icon } from '../components/ui.jsx';
+import { Icon, Vacio } from '../components/ui.jsx';
 import WeeklyCard from '../components/WeeklyCard.jsx';
 
 const RANGOS = { 30: '1 mes', 90: '3 meses', 365: '1 año', 0: 'Todo' };
@@ -84,14 +84,23 @@ export default function Progress({ abrir, irAAjustes }) {
 
       {seccion === 'peso' && <>
       <section className="card stack">
-        <div className="kpi-grid">
-          <div className="kpi"><b className="num">{fmtKg(metas.peso)}</b><span>Peso tendencia (7 días)</span></div>
+        <p className="peso-grande">
+          <b className="num">{fmt(metas.peso, 1)}</b><span>kg<br />tendencia de 7 días</span>
+        </p>
+        <div className="kpi-grid dos">
           <div className="kpi"><b className="num" style={{ color: cambioTotal < 0 ? 'var(--palta)' : undefined }}>{fmtSigno(cambioTotal)} kg</b><span>Desde el inicio</span></div>
           <div className="kpi">
             <b className="num">{a.disponible ? `${fmtSigno(a.pendienteKgSemana, 2)} kg` : '—'}</b>
             <span>Ritmo por semana (4 sem.)</span>
           </div>
         </div>
+        {ctx.weights.length < 2 && (
+          <Vacio img="/img/vacio-peso.webp" titulo="Falta su segundo pesaje"
+            texto="Con dos pesajes empieza la línea de tendencia. Pésese en la mañana, antes de comer.">
+            <button className="btn primary" onClick={() => abrir('peso')}><Icon name="peso" size={20} /> Registrar peso</button>
+          </Vacio>
+        )}
+        {ctx.weights.length >= 2 && <>
         <div className="seg small">
           {Object.entries(RANGOS).map(([k, v]) => (
             <button key={k} className={rango === Number(k) ? 'on' : ''} onClick={() => setRango(Number(k))}>{v}</button>
@@ -102,6 +111,7 @@ export default function Progress({ abrir, irAAjustes }) {
           { name: 'Promedio 7 días', color: 'var(--palta)', points: promedio7 },
         ]} />
         <small>Los puntos son los pesajes diarios; la línea es el promedio de 7 días, que es el dato confiable para ver la tendencia.</small>
+        </>}
       </section>
 
       <section className="card stack">

@@ -27,7 +27,7 @@ export default function Auth() {
   }
 
   return (
-    <div className="center-page">
+    <div className="center-page acceso">
       <form className="auth card stack" onSubmit={enviar}>
         <div className="brand">
           <h1><Logo alto={56} /></h1>
@@ -71,7 +71,7 @@ export function NuevaClave({ onDone }) {
     onDone();
   }
   return (
-    <div className="center-page">
+    <div className="center-page acceso">
       <form className="auth card stack" onSubmit={guardar}>
         <h1>Nueva contraseña</h1>
         <input type="password" minLength={6} required value={clave} onChange={(e) => setClave(e.target.value)} autoComplete="new-password" />
