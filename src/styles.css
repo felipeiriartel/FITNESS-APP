@@ -881,3 +881,20 @@ html { overscroll-behavior-y: none; }
 .anden-datos dd { font-size: 1.5rem; }
 .peso-cifra small { display: block; margin-top: 2px; }
 .seg.small button { font-size: 0.9rem; padding: 8px 4px; min-height: 44px; white-space: nowrap; }
+
+/* ---------- Amigos, comidas compartidas y suscripción ---------- */
+.input-icono { position: relative; display: block; }
+.input-icono svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--dim); pointer-events: none; }
+.input-icono input { padding-left: 40px; width: 100%; }
+.tab-ico { position: relative; display: inline-flex; }
+.tab-aviso { position: absolute; top: -2px; right: -5px; width: 9px; height: 9px; border-radius: 50%; background: var(--choclo); box-shadow: 0 0 0 2px var(--bg); }
+.compartir-titulo { display: flex; align-items: center; gap: 8px; font-weight: 650; color: var(--muted); font-size: 0.92rem; }
+.recibidas .recibida + .recibida { border-top: 1px solid var(--line); }
+.recibidas .recibida .list-item { border-top: none; padding-bottom: 6px; }
+.recibida-acciones { padding-bottom: 12px; gap: var(--e2); }
+.aviso-prueba { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; color: var(--ink); cursor: pointer; font: inherit; }
+.paywall .brand { align-items: center; }
+.paywall-titulo { font-family: var(--font-display); text-transform: uppercase; font-weight: 800; font-size: 2rem; line-height: 1.05; letter-spacing: 0.02em; margin: 0; }
+.paywall-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.paywall-lista li { display: flex; align-items: center; gap: 10px; }
+.paywall-lista svg { color: var(--linea); flex-shrink: 0; }

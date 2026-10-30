@@ -150,6 +150,24 @@ async function registrarUso(fila: Record<string, unknown>) {
   }
 }
 
+/** Revisa si la persona tiene prueba vigente, suscripción o cuenta gratis. Si la consulta falla, no bloquea. */
+async function tieneAcceso(userId: string | null): Promise<boolean> {
+  const url = Deno.env.get("SUPABASE_URL");
+  const clave = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!userId || !url || !clave) return true;
+  try {
+    const r = await fetch(`${url}/rest/v1/rpc/tiene_acceso`, {
+      method: "POST",
+      headers: { apikey: clave, Authorization: `Bearer ${clave}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_user: userId }),
+    });
+    if (!r.ok) return true;
+    return (await r.json()) !== false;
+  } catch {
+    return true;
+  }
+}
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -360,6 +378,9 @@ Deno.serve(async (req) => {
   const uso = { user_id: usuarioDe(req), modo: "analizar", foto: false, proveedor: null as string | null, modelo: null as string | null,
     intentos: 0, tokens_entrada: 0, tokens_salida: 0, ok: false, error: null as string | null };
   try {
+    if (!(await tieneAcceso(uso.user_id))) {
+      return json({ error: "Su prueba gratis terminó. Suscríbase en Ajustes para seguir usando la IA.", codigo: "sin_suscripcion" }, 402);
+    }
     let body: Body;
     try {
       body = (await req.json()) as Body;

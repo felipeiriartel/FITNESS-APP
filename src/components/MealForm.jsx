@@ -4,6 +4,7 @@ import { comprimirImagen } from '../lib/image.js';
 import { TIPOS_COMIDA } from '../lib/calc.js';
 import { fmt, uuid } from '../lib/format.js';
 import { useData } from '../data.jsx';
+import { useSocial } from '../social.jsx';
 import { ErrorBox, Icon, Modal, Spinner, useToast } from './ui.jsx';
 import CameraCapture from './CameraCapture.jsx';
 
@@ -50,7 +51,7 @@ const n = (v) => {
  * se guarda como frecuente.
  */
 /** Convierte una comida guardada en los valores iniciales del formulario de edición. */
-function desdeComida(c) {
+export function desdeComida(c) {
   const items = Array.isArray(c.items) && c.items.length
     ? c.items
     : [{ nombre: c.description, cantidad: '', gramos: 0, kcal: c.kcal, proteina_g: c.protein_g, carbohidratos_g: c.carbs_g, grasas_g: c.fat_g }];
@@ -73,6 +74,8 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
   const [items, setItems] = useState(inicial?.items ?? []);
   const [nombre, setNombre] = useState(inicial?.nombre ?? '');
   const [guardarFav, setGuardarFav] = useState(false);
+  const { soloAmigos = [] } = useSocial() ?? {};
+  const [compartirCon, setCompartirCon] = useState([]); // amigos que comieron lo mismo
   const [estado, setEstado] = useState('editando'); // editando | analizando | guardando
   const [error, setError] = useState(null);
   const [camara, setCamara] = useState(false); // cámara propia con círculo guía
@@ -184,6 +187,14 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
         }).eq('id', editar.id)
         : await supabase.from('meals').insert(fila);
       if (e1) throw e1;
+      let compartida = '';
+      if (compartirCon.length) {
+        const { error: e3 } = await supabase.from('comidas_compartidas').insert(compartirCon.map((para) => ({
+          de_user: userId, para_user: para, log_date: fecha, meal_type: fila.meal_type, description: fila.description,
+          kcal: fila.kcal, protein_g: fila.protein_g, carbs_g: fila.carbs_g, fat_g: fila.fat_g, items: fila.items,
+        })));
+        compartida = e3 ? ' (no se pudo compartir)' : ` y compartida con ${compartirCon.length === 1 ? '1 amigo' : `${compartirCon.length} amigos`}`;
+      }
       if (guardarFav) {
         const { error: e2 } = await supabase.from('favorite_meals').insert({
           user_id: userId, name: desc, meal_type: tipo, kcal: fila.kcal,
@@ -192,7 +203,7 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
         });
         if (e2) throw e2;
       }
-      toast(editar ? `${desc} actualizada` : `${desc}: ${fila.kcal} kcal registradas`);
+      toast((editar ? `${desc} actualizada` : `${desc}: ${fila.kcal} kcal registradas`) + compartida);
       await reload();
       onClose(true);
     } catch (e) {
@@ -397,6 +408,23 @@ export default function MealForm({ fecha, onClose, modo = 'foto', inicial: inici
               <span>Guardar como comida frecuente{foto ? ' (con su foto)' : ''}</span>
             </label>
             {foto && !guardarFav && <small>La foto solo se usó para el análisis y no quedará guardada.</small>}
+            {soloAmigos.length > 0 && !inicial?.compartida && (
+              <div className="stack compartir" style={{ gap: 6 }}>
+                <span className="compartir-titulo"><Icon name="compartir" size={18} /> ¿Alguien comió lo mismo? Compártalo</span>
+                <div className="chips compact">
+                  {soloAmigos.map((a) => {
+                    const on = compartirCon.includes(a.user_id);
+                    return (
+                      <button type="button" key={a.user_id} className={`chip${on ? ' on' : ''}`} aria-pressed={on}
+                        onClick={() => setCompartirCon((p) => (on ? p.filter((x) => x !== a.user_id) : [...p, a.user_id]))}>
+                        {a.nombre.split(' ')[0]}
+                      </button>
+                    );
+                  })}
+                </div>
+                {compartirCon.length > 0 && <small>Les llegará a {compartirCon.length === 1 ? 'su amigo' : 'sus amigos'} para que la confirmen o ajusten la porción.</small>}
+              </div>
+            )}
             {editar && (
               <button className="btn ghost danger block" disabled={ocupado} onClick={eliminar}>Eliminar comida</button>
             )}

@@ -7,6 +7,7 @@ import { useData } from '../data.jsx';
 import { ProfileForm } from '../components/forms.jsx';
 import { ErrorBox, Icon, useToast } from '../components/ui.jsx';
 import Reminders from '../components/Reminders.jsx';
+import { SuscripcionCard } from '../components/Suscripcion.jsx';
 
 const NOMBRES = {
   weight_logs: 'pesajes', meals: 'comidas', exercise_logs: 'ejercicios', water_logs: 'registros de agua', favorite_meals: 'comidas frecuentes',
@@ -59,6 +60,8 @@ export default function Settings({ email, volver }) {
         <button className="icon-btn round" onClick={volver} aria-label="Volver"><Icon name="izq" /></button>
         <div className="titles" style={{ textAlign: 'left' }}><h1>Ajustes</h1></div>
       </header>
+
+      <SuscripcionCard />
 
       <section className="card">
         <h2 style={{ marginBottom: 12 }}>Perfil y metas</h2>

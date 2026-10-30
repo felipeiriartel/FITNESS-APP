@@ -10,6 +10,8 @@ import WaterInput from '../components/WaterInput.jsx';
 import { useFotos } from '../lib/useFotos.js';
 import WeeklyCard from '../components/WeeklyCard.jsx';
 import NotifButton from '../components/NotifButton.jsx';
+import ComidasRecibidas from '../components/ComidasRecibidas.jsx';
+import { AvisoPrueba } from '../components/Suscripcion.jsx';
 
 export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes }) {
   const { metas, ctx, exercises, water, weights, reload } = useData();
@@ -133,6 +135,9 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
       <button className="btn block sugerir" onClick={() => abrir('sugerir')}>
         <Icon name="idea" size={20} /> ¿Qué puedo comer ahora?
       </button>
+
+      {fecha === hoy && <AvisoPrueba irAAjustes={irAAjustes} />}
+      <ComidasRecibidas abrir={abrir} />
 
       {fecha === hoy && esLunes && <WeeklyCard semana="pasada" compacto onVerMas={irAProgreso} />}
 

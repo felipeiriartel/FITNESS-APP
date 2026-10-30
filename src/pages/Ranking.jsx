@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase.js';
 import { MESES, todayISO } from '../lib/dates.js';
 import { useData } from '../data.jsx';
 import { Icon, Spinner, Vacio } from '../components/ui.jsx';
+import Amigos from '../components/Amigos.jsx';
+import { useSocial } from '../social.jsx';
 
 const CADA_MS = 20000; // se actualiza cada 20 segundos mientras está abierta
 
@@ -35,6 +37,7 @@ function textoLider(filas, conPuntos) {
 
 export default function Ranking() {
   const { ctx } = useData();
+  const { soloAmigos } = useSocial();
   const hoy = todayISO();
   const [filas, setFilas] = useState(null); // null = cargando
   const [anterior, setAnterior] = useState(null);
@@ -101,6 +104,10 @@ export default function Ranking() {
         </span>
       </header>
 
+      {filas !== null && !soloAmigos.length && !error && (
+        <div className="alert info">El ranking es solo entre amigos. Busque a sus amigos abajo o mándeles su enlace de invitación para competir.</div>
+      )}
+
       {filas !== null && !conPuntos && !error ? (
         <section className="card lider-vacio" aria-label="Líder del mes">
           <Vacio img="/img/vacio-ranking.webp" titulo="Nadie suma puntos todavía"
@@ -139,6 +146,8 @@ export default function Ranking() {
         </ol>
       </section>}
 
+      <Amigos alCambiar={cargar} />
+
       <section className="card stack rank-rules">
         <h2>Cómo se suman puntos</h2>
         <div className="rule"><i className="sw ok" /> <span className="grow">Día verde: dentro de su meta</span><b>+2</b></div>
@@ -147,7 +156,7 @@ export default function Ranking() {
         <small>
           Cada día usa su meta de calorías y el mismo color que ve en el Calendario. El día de hoy suma en vivo.
           Empate: gana quien tenga más días verdes. El marcador vuelve a cero el día 1.
-          Los demás solo ven su nombre y sus puntos, nunca sus calorías ni su peso.
+          Solo compiten usted y sus amigos. Ellos ven su nombre y sus puntos, nunca sus calorías ni su peso.
         </small>
       </section>
 
