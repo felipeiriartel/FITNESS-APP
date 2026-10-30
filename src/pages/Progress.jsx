@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { FACTOR_EJERCICIO, NIVELES_ACTIVIDAD, resumenSemana } from '../lib/calc.js';
+import { FACTOR_EJERCICIO, NIVELES_ACTIVIDAD, OBJETIVOS, resumenSemana } from '../lib/calc.js';
 import { addDays, formatCorto, startOfWeek, todayISO } from '../lib/dates.js';
 import { fmt, fmtKg, fmtSigno } from '../lib/format.js';
 import { useData } from '../data.jsx';
@@ -88,7 +88,7 @@ export default function Progress({ abrir, irAAjustes }) {
           <b className="num">{fmt(metas.peso, 1)}</b><span>kg<br />tendencia de 7 días</span>
         </p>
         <div className="kpi-grid dos">
-          <div className="kpi"><b className="num" style={{ color: cambioTotal < 0 ? 'var(--palta)' : undefined }}>{fmtSigno(cambioTotal)} kg</b><span>Desde el inicio</span></div>
+          <div className="kpi"><b className="num" style={{ color: (OBJETIVOS[metas.objetivo].signo < 0 ? cambioTotal < 0 : OBJETIVOS[metas.objetivo].signo > 0 ? cambioTotal > 0 : false) ? 'var(--palta)' : undefined }}>{fmtSigno(cambioTotal)} kg</b><span>Desde el inicio</span></div>
           <div className="kpi">
             <b className="num">{a.disponible ? `${fmtSigno(a.pendienteKgSemana, 2)} kg` : '—'}</b>
             <span>Ritmo por semana (4 sem.)</span>
@@ -139,7 +139,9 @@ export default function Progress({ abrir, irAAjustes }) {
               <td className="num">{a.disponible ? `${fmt(a.tdee)} kcal` : '—'}</td>
             </tr>
             <tr><td><b>Gasto usado</b></td><td className="num"><b>{fmt(metas.tdee)} kcal</b></td></tr>
-            <tr><td>Déficit para {fmt(metas.ritmo, 2)} kg/semana</td><td className="num">−{fmt(metas.deficit)} kcal</td></tr>
+            <tr><td>Objetivo</td><td>{OBJETIVOS[metas.objetivo].label}</td></tr>
+            {metas.deficit > 0 && <tr><td>Déficit para bajar {fmt(metas.ritmo, 2)} kg/semana</td><td className="num">−{fmt(metas.deficit)} kcal</td></tr>}
+            {metas.superavit > 0 && <tr><td>Superávit para subir {fmt(metas.ritmo, 2)} kg/semana</td><td className="num">+{fmt(metas.superavit)} kcal</td></tr>}
             <tr><td><b>Meta diaria {metas.manual ? '(manual)' : '(automática)'}</b></td><td className="num"><b>{fmt(metas.meta)} kcal</b></td></tr>
             {metas.manual && <tr><td>Meta automática sugerida</td><td className="num">{fmt(metas.metaAuto)} kcal</td></tr>}
           </tbody>
@@ -157,7 +159,7 @@ export default function Progress({ abrir, irAAjustes }) {
           </div>
         )}
         {a.atipico && <div className="alert warn">El gasto real calculado difiere demasiado de la fórmula; probablemente faltan comidas por registrar. Se usa solo la fórmula.</div>}
-        {metas.ritmoLimitado && <div className="alert warn">El ritmo elegido supera el 1% de su peso por semana; se limitó a {fmt(metas.ritmo, 2)} kg.</div>}
+        {metas.ritmoLimitado && <div className="alert warn">El ritmo elegido supera el {fmt(metas.topePct * 100, 2)}% de su peso por semana recomendado para su objetivo; se limitó a {fmt(metas.ritmo, 2)} kg.</div>}
         {metas.manual && <div className="alert warn">Su meta está en modo manual, por lo que no considera su ejercicio ni su avance real. Puede cambiarla a automática en Ajustes.</div>}
         {metas.bajoMinimo && <div className="alert warn">Su meta manual está bajo el mínimo recomendado ({fmt(metas.minimo)} kcal).</div>}
         <div className="kpi-grid">
@@ -165,6 +167,7 @@ export default function Progress({ abrir, irAAjustes }) {
           <div className="kpi"><b className="num">{fmt(metas.carbos)} g</b><span>Carbohidratos/día</span></div>
           <div className="kpi"><b className="num">{fmt(metas.grasa)} g</b><span>Grasas/día</span></div>
         </div>
+        <Ciencia metas={metas} />
       </section>
       </>}
 
@@ -225,5 +228,55 @@ export default function Progress({ abrir, irAAjustes }) {
       </section>
       )}
     </div>
+  );
+}
+
+const FUENTES = [
+  ['Mifflin y cols. 1990 · metabolismo basal', 'https://doi.org/10.1093/ajcn/51.2.241'],
+  ['Helms y cols. 2014 · déficit y proteína (JISSN)', 'https://doi.org/10.1186/1550-2783-11-20'],
+  ['Jäger y cols. 2017 · proteína (ISSN)', 'https://doi.org/10.1186/s12970-017-0177-8'],
+  ['Morton y cols. 2018 · proteína y músculo (BJSM)', 'https://doi.org/10.1136/bjsports-2017-097608'],
+  ['Iraki y cols. 2019 · ganar músculo (Sports)', 'https://doi.org/10.3390/sports7070154'],
+  ['Institute of Medicine 2005 · rangos de macronutrientes', 'https://nap.nationalacademies.org/catalog/10490'],
+];
+
+/** Explica de dónde sale cada cifra, con sus fuentes. */
+function Ciencia({ metas }) {
+  const o = metas.objetivo;
+  const pct = (g, kcalG) => Math.round(((g * kcalG) / metas.meta) * 100);
+  return (
+    <details className="ciencia">
+      <summary>Cómo se calculan sus macros</summary>
+      <ul>
+        <li>
+          <b>Proteína: {fmt(metas.proteinaGkg, 1)} g por kilo</b>{metas.proteinaAuto ? ' (según su objetivo)' : ' (elegida por usted)'}
+          {metas.pesoRef < metas.peso - 0.5 && <> sobre un peso ajustado de {fmt(metas.pesoRef, 1)} kg, porque con IMC sobre 30 se usa el peso ajustado</>}.
+          {' '}{o === 'bajar' && 'En déficit, una proteína alta (1,6 a 2,4 g/kg) ayuda a conservar el músculo; con entrenamiento de fuerza se usa 2,0.'}
+          {o === 'mantener' && 'Para adultos activos se recomiendan 1,2 a 1,6 g/kg; 1,6 g/kg es donde se estabiliza la ganancia de músculo con entrenamiento.'}
+          {o === 'musculo' && 'Para ganar músculo con entrenamiento de fuerza se recomiendan 1,6 a 2,2 g/kg al día, repartidos en 3 a 5 comidas.'}
+          {o === 'subir' && 'Para subir de peso con calidad se recomiendan al menos 1,6 g/kg al día.'}
+        </li>
+        <li>
+          <b>Grasas: {pct(metas.grasa, 9)}% de las calorías</b>, dentro del rango recomendado de 20 a 35% y nunca menos de 0,6 g por kilo.
+        </li>
+        <li>
+          <b>Carbohidratos: el resto ({pct(metas.carbos, 4)}%)</b>. Son el combustible del entrenamiento.
+          {metas.carbos < 130 && ' Su meta queda bajo los 130 g diarios recomendados como mínimo; considere un ritmo más lento.'}
+        </li>
+        <li>
+          <b>Ritmo:</b>{' '}
+          {o === 'bajar' && 'bajar entre 0,5 y 1% del peso por semana conserva mejor la masa muscular.'}
+          {o === 'mantener' && 'la meta es igual a su gasto estimado.'}
+          {o === 'musculo' && 'subir cerca de 0,25 a 0,5% del peso por semana: un superávit mayor suma más grasa que músculo. Necesita entrenamiento de fuerza.'}
+          {o === 'subir' && 'subir entre 0,25 y 0,5 kg por semana con un superávit de 250 a 550 kcal diarias.'}
+          {' '}La app corrige la meta con su peso real cada semana.
+        </li>
+        <li><b>Fibra:</b> unos {fmt(metas.fibra)} g al día (14 g por cada 1.000 kcal).</li>
+      </ul>
+      <p className="muted">Son recomendaciones generales para adultos sanos. Si está embarazada, tiene una enfermedad o toma medicamentos, consulte a un nutricionista.</p>
+      <div className="fuentes">
+        {FUENTES.map(([t, u]) => <a key={u} href={u} target="_blank" rel="noreferrer">{t}</a>)}
+      </div>
+    </details>
   );
 }
