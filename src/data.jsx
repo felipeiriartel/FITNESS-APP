@@ -49,9 +49,9 @@ export function DataProvider({ userId, children }) {
   const ultimoCache = useRef(null);
   useEffect(() => {
     if (!metas || !profile) return;
-    const cache = { meta: Math.round(metas.meta), proteina: Math.round(metas.proteina), agua: Math.round(metas.agua) };
+    const cache = { meta: Math.round(metas.meta), proteina: Math.round(metas.proteina), agua: Math.round(metas.agua), objetivo: metas.objetivo };
     const actual = ultimoCache.current ?? profile.metas_cache ?? {};
-    if (cache.meta === actual.meta && cache.proteina === actual.proteina && cache.agua === actual.agua) return;
+    if (cache.meta === actual.meta && cache.proteina === actual.proteina && cache.agua === actual.agua && cache.objetivo === actual.objetivo) return;
     ultimoCache.current = cache;
     supabase.from('profiles').update({ metas_cache: cache }).eq('user_id', userId)
       .then(({ error: e }) => e && console.warn('metas_cache:', e.message));

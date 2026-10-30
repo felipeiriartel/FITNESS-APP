@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useSwipe } from '../lib/useSwipe.js';
-import { ESTADOS, estadoDia } from '../lib/calc.js';
+import { estadosDe, estadoDia } from '../lib/calc.js';
 import { DIAS_CORTOS, MESES, fromISO, toISO, todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
@@ -28,7 +28,7 @@ export default function CalendarPage({ abrirDia }) {
   for (const iso of celdas) {
     if (!iso || iso > hoy) continue;
     const kcal = ctx.intakeByDate.get(iso)?.kcal ?? 0;
-    conteo[estadoDia(kcal, metas.meta)]++;
+    conteo[estadoDia(kcal, metas.meta, metas.objetivo)]++;
     sesiones += ctx.exerciseByDate.get(iso)?.count ?? 0;
     if (kcal) {
       kcalTotal += kcal;
@@ -67,12 +67,12 @@ export default function CalendarPage({ abrirDia }) {
             if (!iso) return <div key={`v${i}`} className="cal-day vacio" />;
             const futuro = iso > hoy;
             const kcal = ctx.intakeByDate.get(iso)?.kcal ?? 0;
-            const est = futuro ? 'sin' : estadoDia(kcal, metas.meta);
+            const est = futuro ? 'sin' : estadoDia(kcal, metas.meta, metas.objetivo);
             const ej = ctx.exerciseByDate.get(iso);
             return (
               <button key={iso} className={`cal-day ${est}${iso === hoy ? ' hoy' : ''}${futuro ? ' futuro' : ''}`}
                 disabled={futuro} onClick={() => abrirDia(iso)}
-                aria-label={`${iso}: ${ESTADOS[est]}${ej ? ', con ejercicio' : ''}`}>
+                aria-label={`${iso}: ${estadosDe(metas.objetivo)[est]}${ej ? ', con ejercicio' : ''}`}>
                 {ej && <span className="dot" />}
                 <b>{Number(iso.slice(8))}</b>
                 {kcal > 0 && <small className="num">{fmt(kcal)}</small>}
@@ -83,7 +83,10 @@ export default function CalendarPage({ abrirDia }) {
       </section>
 
       <div className="legend" aria-label="Significado de los colores">
-        {[['ok', 'En meta'], ['leve', 'Leve exceso (≤10%)'], ['exceso', 'Exceso'], ['bajo', 'Muy bajo'], ['sin', 'Sin registro']].map(([e, t]) => (
+        {(metas.objetivo === 'bajar'
+          ? [['ok', 'En meta'], ['leve', 'Leve exceso (≤10%)'], ['exceso', 'Exceso'], ['bajo', 'Muy bajo'], ['sin', 'Sin registro']]
+          : [['ok', 'En meta (±10%)'], ['leve', 'Cerca (±20%)'], ['exceso', 'Sobre +20%'], ['bajo', 'Bajo 80%'], ['sin', 'Sin registro']]
+        ).map(([e, t]) => (
           <span key={e} className="ley"><i className={`ley-dot ${e}`} />{t}</span>
         ))}
         <span className="ley"><i className="ley-dot ej" />Ejercicio</span>
@@ -93,14 +96,16 @@ export default function CalendarPage({ abrirDia }) {
         <h2 style={{ marginBottom: 10 }}>Resumen del mes</h2>
         <div className="kpi-grid">
           <div className="kpi"><b className="num">{conteo.ok}</b><span>Días en meta</span></div>
-          <div className="kpi"><b className="num">{conteo.leve + conteo.exceso}</b><span>Días sobre la meta</span></div>
-          <div className="kpi"><b className="num">{conteo.sin + conteo.bajo}</b><span>Sin registro o incompletos</span></div>
+          <div className="kpi"><b className="num">{metas.objetivo === 'bajar' ? conteo.leve + conteo.exceso : conteo.leve}</b><span>{metas.objetivo === 'bajar' ? 'Días sobre la meta' : 'Días cerca de la meta'}</span></div>
+          <div className="kpi"><b className="num">{metas.objetivo === 'bajar' ? conteo.sin + conteo.bajo : conteo.bajo + conteo.exceso}</b><span>{metas.objetivo === 'bajar' ? 'Sin registro o incompletos' : 'Días lejos de la meta'}</span></div>
           <div className="kpi"><b className="num">{diasReg ? fmt(kcalTotal / diasReg) : '—'}</b><span>kcal promedio/día</span></div>
           <div className="kpi"><b className="num">{sesiones}</b><span>Sesiones de ejercicio</span></div>
           <div className="kpi"><b className="num">{fmt(metas.meta)}</b><span>Meta actual (kcal)</span></div>
         </div>
       </section>
-      <small>Un día “muy bajo o incompleto” (menos del 60% de la meta) suele indicar que faltó registrar algo. Comer muy por debajo de la meta tampoco es recomendable.</small>
+      <small>{metas.objetivo === 'bajar'
+        ? 'Un día “muy bajo o incompleto” (menos del 60% de la meta) suele indicar que faltó registrar algo. Comer muy por debajo de la meta tampoco es recomendable.'
+        : 'Para subir de peso o ganar músculo importa llegar a la meta: un día bajo el 80% cuenta como bajo la meta.'}</small>
     </div>
   );
 }

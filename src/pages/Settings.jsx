@@ -8,6 +8,7 @@ import { ProfileForm } from '../components/forms.jsx';
 import { ErrorBox, Icon, useToast } from '../components/ui.jsx';
 import Reminders from '../components/Reminders.jsx';
 import { SuscripcionCard } from '../components/Suscripcion.jsx';
+import { OBJETIVOS } from '../lib/calc.js';
 
 const NOMBRES = {
   weight_logs: 'pesajes', meals: 'comidas', exercise_logs: 'ejercicios', water_logs: 'registros de agua', favorite_meals: 'comidas frecuentes',
@@ -61,10 +62,26 @@ export default function Settings({ email, volver }) {
         <div className="titles" style={{ textAlign: 'left' }}><h1>Ajustes</h1></div>
       </header>
 
+      <section className="card perfil-resumen" aria-label="Mi perfil">
+        <span className="avatar-btn grande" aria-hidden="true">
+          {(profile?.display_name ?? '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || <Icon name="usuario" />}
+        </span>
+        <div className="grow">
+          <h2>{profile?.display_name?.trim() || 'Mi perfil'}</h2>
+          <small className="muted">{email}</small>
+          {metas && (
+            <p className="perfil-metas">
+              <b>{OBJETIVOS[metas.objetivo].label}</b> · <span className="num">{fmt(metas.meta)}</span> kcal ·{' '}
+              <span className="p num">P {fmt(metas.proteina)}</span> <span className="c num">C {fmt(metas.carbos)}</span> <span className="g num">G {fmt(metas.grasa)}</span> g
+            </p>
+          )}
+        </div>
+      </section>
+
       <SuscripcionCard />
 
-      <section className="card">
-        <h2 style={{ marginBottom: 12 }}>Perfil y metas</h2>
+      <section className="card" id="perfil">
+        <h2 style={{ marginBottom: 12 }}>Perfil y objetivo</h2>
         <ProfileForm inicial={profile} textoBoton="Guardar cambios" />
       </section>
 

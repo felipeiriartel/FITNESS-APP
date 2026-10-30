@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { mensajeError, supabase } from '../lib/supabase.js';
 import { compartirInvitacion, useSocial } from '../social.jsx';
-import { ErrorBox, Icon, Spinner, useToast } from './ui.jsx';
+import { ErrorBox, Icon, Modal, Spinner, useToast } from './ui.jsx';
 
 const BOTON = {
   ninguna: { texto: 'Agregar', clase: 'primary' },
@@ -10,8 +10,17 @@ const BOTON = {
   amigo: { texto: 'Amigos', clase: '' },
 };
 
+/** Hoja para agregar amigos, accesible desde Hoy, Ranking y el menú +. */
+export function AmigosSheet({ onClose, alCambiar }) {
+  return (
+    <Modal title="Amigos" onClose={onClose}>
+      <Amigos alCambiar={alCambiar} enHoja />
+    </Modal>
+  );
+}
+
 /** Amigos: solicitudes recibidas, búsqueda por nombre, lista y enlace de invitación. */
-export default function Amigos({ alCambiar }) {
+export default function Amigos({ alCambiar, enHoja }) {
   const { amigos, solicitudes, soloAmigos, sus, cargarAmigos } = useSocial();
   const toast = useToast();
   const [q, setQ] = useState('');
@@ -68,11 +77,14 @@ export default function Amigos({ alCambiar }) {
   }
 
   return (
-    <section className="card stack amigos" aria-label="Amigos">
-      <div className="card-head" style={{ marginBottom: 0 }}>
-        <div className="section-title"><span className="badge"><Icon name="amigos" size={18} /></span><h2>Amigos</h2></div>
-        <span className="muted num">{soloAmigos.length}</span>
-      </div>
+    <section className={enHoja ? 'stack amigos' : 'card stack amigos'} aria-label="Amigos">
+      {!enHoja && (
+        <div className="card-head" style={{ marginBottom: 0 }}>
+          <div className="section-title"><span className="badge"><Icon name="amigos" size={18} /></span><h2>Amigos</h2></div>
+          <span className="muted num">{soloAmigos.length}</span>
+        </div>
+      )}
+      {enHoja && <p className="muted">Compita en el ranking solo con sus amigos y compártales lo que comieron juntos.</p>}
 
       {solicitudes.length > 0 && (
         <div className="alert info stack" style={{ gap: 8 }}>
@@ -88,7 +100,7 @@ export default function Amigos({ alCambiar }) {
       )}
 
       <label className="field buscar-amigo">
-        Buscar por nombre
+        Agregar amigo por nombre
         <span className="input-icono">
           <Icon name="buscar" size={18} />
           <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ej: Ignacia" autoComplete="off" enterKeyHint="search" />
@@ -117,7 +129,7 @@ export default function Amigos({ alCambiar }) {
         </button>
       )}
 
-      {(soloAmigos.length > 0 || enviadas.length > 0) && (
+      {(soloAmigos.length > 0 || enviadas.length > 0) && !enHoja && (
         <>
           <button className="btn small ghost block" aria-expanded={abierto} onClick={() => setAbierto((v) => !v)}>
             {abierto ? 'Ocultar mis amigos' : `Ver mis amigos (${soloAmigos.length})`}
@@ -139,7 +151,62 @@ export default function Amigos({ alCambiar }) {
           )}
         </>
       )}
+      {enHoja && (soloAmigos.length > 0 || enviadas.length > 0) && (
+        <div className="stack" style={{ gap: 4 }}>
+          <span className="field-label">Mis amigos ({soloAmigos.length})</span>
+          <div className="list">
+            {[...soloAmigos, ...enviadas].map((a) => (
+              <div className="list-item" key={a.solicitud_id}>
+                <span className="grow"><b>{a.nombre}</b>{a.relacion === 'enviada' && <small className="muted"> · solicitud enviada</small>}</span>
+                <button className="icon-btn" aria-label={a.relacion === 'enviada' ? `Cancelar solicitud a ${a.nombre}` : `Quitar a ${a.nombre}`} onClick={() => eliminar(a)}>
+                  <Icon name="x" size={18} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <ErrorBox>{error}</ErrorBox>
     </section>
+  );
+}
+
+/** Aviso en Hoy: solicitudes pendientes o invitación a agregar amigos si tiene pocos. */
+export function AmigosAviso({ abrir }) {
+  const { sus, solicitudes, soloAmigos, cargarAmigos } = useSocial();
+  const toast = useToast();
+  if (!sus) return null;
+
+  async function aceptar(s) {
+    const { error } = await supabase.rpc('responder_amistad', { p_id: s.solicitud_id, p_aceptar: true });
+    if (error) return toast(error.message, 'error');
+    toast(`Ahora es amigo de ${s.nombre}`);
+    cargarAmigos();
+  }
+
+  if (solicitudes.length) {
+    const s = solicitudes[0];
+    return (
+      <section className="card amigos-aviso" aria-label="Solicitud de amistad">
+        <span className="badge"><Icon name="amigos" size={18} /></span>
+        <span className="grow">
+          <b>{s.nombre.split(' ')[0]}</b> quiere ser su amigo{solicitudes.length > 1 && <> y {solicitudes.length - 1} más</>}
+        </span>
+        {solicitudes.length > 1
+          ? <button className="btn small primary" onClick={() => abrir('amigos')}>Ver</button>
+          : <button className="btn small primary" onClick={() => aceptar(s)}>Aceptar</button>}
+      </section>
+    );
+  }
+  if (soloAmigos.length >= 2) return null;
+  return (
+    <button className="card amigos-aviso invitar" onClick={() => abrir('amigos')}>
+      <span className="badge"><Icon name="amigos" size={18} /></span>
+      <span className="grow">
+        <b>Compita con sus amigos</b>
+        <small>Agréguelos para el ranking del mes y compartir comidas</small>
+      </span>
+      <span className="btn small primary" aria-hidden="true"><Icon name="mas" size={18} /> Agregar</span>
+    </button>
   );
 }

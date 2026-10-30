@@ -62,6 +62,61 @@ export const TIPOS_COMIDA = [
   { id: 'bebida', label: 'Bebida', icono: 'bebida' },
 ];
 
+/*
+ * Objetivos y su base científica (ver "Cómo se calcula" en Progreso):
+ * - Bajar: 0,5–1 % del peso por semana preserva mejor la masa muscular (Helms y cols., JISSN 2014).
+ *   Proteína alta en déficit: 1,6–2,4 g/kg; con entrenamiento de fuerza se usa 2,0 (Helms 2014; ISSN, Jäger y cols. 2017).
+ * - Mantener: 1,2–1,6 g/kg en adultos activos; 1,6 g/kg es el punto en que se estabiliza la ganancia de músculo
+ *   con entrenamiento (Morton y cols., Br J Sports Med 2018).
+ * - Ganar músculo: superávit pequeño, subir ~0,25–0,5 % del peso por semana; proteína 1,6–2,2 g/kg;
+ *   grasa 0,5–1,5 g/kg; el resto, carbohidratos (Iraki y cols., Sports 2019).
+ * - Subir de peso: superávit de ~250–550 kcal/día (0,25–0,5 kg/semana), proteína ≥1,6 g/kg.
+ * - Grasa dentro del rango aceptable de 20–35 % de las calorías y nunca bajo 0,6 g/kg (IOM 2005, Helms 2014).
+ */
+export const OBJETIVOS = {
+  bajar: {
+    label: 'Bajar de peso', detalle: 'Perder grasa cuidando el músculo', signo: -1,
+    ritmos: [0.25, 0.5, 0.75, 1], ritmoDef: 0.5, topePct: 0.01, grasaPct: 0.25,
+    proteina: (entrena) => (entrena ? 2.0 : 1.6),
+  },
+  mantener: {
+    label: 'Mantener mi peso', detalle: 'Comer lo que gasta', signo: 0,
+    ritmos: [0], ritmoDef: 0, topePct: 0, grasaPct: 0.3,
+    proteina: (entrena) => (entrena ? 1.6 : 1.2),
+  },
+  musculo: {
+    label: 'Ganar músculo', detalle: 'Superávit pequeño + entrenamiento de fuerza', signo: 1,
+    ritmos: [0.1, 0.2, 0.3], ritmoDef: 0.2, topePct: 0.005, grasaPct: 0.25,
+    proteina: () => 2.0,
+  },
+  subir: {
+    label: 'Subir de peso', detalle: 'Aumentar peso de forma gradual', signo: 1,
+    ritmos: [0.25, 0.5], ritmoDef: 0.25, topePct: 0.0075, grasaPct: 0.3,
+    proteina: () => 1.6,
+  },
+};
+export const objetivoDe = (profile) => OBJETIVOS[profile?.objetivo] ? profile.objetivo : 'bajar';
+/** Entrena con regularidad: 2 horas o más por semana de ejercicio habitual. */
+export const entrena = (profile) => Number(profile?.usual_exercise_hours_week ?? 0) >= 2;
+
+/** Proteína recomendada (g/kg) según objetivo y entrenamiento. */
+export function proteinaRecomendada(profile) {
+  return OBJETIVOS[objetivoDe(profile)].proteina(entrena(profile));
+}
+
+/**
+ * Peso de referencia para la proteína. Con IMC ≥ 30 se usa el peso ajustado
+ * (peso a IMC 25 + 40 % del exceso), para no sobreestimarla.
+ */
+export function pesoReferencia(peso, alturaCm) {
+  const h = Number(alturaCm) / 100;
+  if (!h) return peso;
+  const imc = peso / (h * h);
+  if (imc < 30) return peso;
+  const p25 = 25 * h * h;
+  return p25 + 0.4 * (peso - p25);
+}
+
 const round10 = (n) => Math.round(n / 10) * 10;
 const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
 
@@ -171,15 +226,23 @@ export function calcularMetas(profile, ctx, onISO) {
   const c = adaptativo.disponible ? adaptativo.confianza : 0;
   const tdee = tdeeFormula * (1 - c) + (adaptativo.tdee ?? 0) * c;
 
-  const ritmo = Math.min(Number(profile.goal_rate_kg_week), peso * 0.01);
-  const deficit = (ritmo * KCAL_POR_KG) / 7;
+  const objetivo = objetivoDe(profile);
+  const obj = OBJETIVOS[objetivo];
+  const pedido = obj.signo === 0 ? 0 : Number(profile.goal_rate_kg_week);
+  const ritmo = Math.min(pedido, peso * obj.topePct);
+  const ajuste = obj.signo * ((ritmo * KCAL_POR_KG) / 7); // negativo = déficit, positivo = superávit
+  const deficit = Math.max(0, -ajuste);
+  const superavit = Math.max(0, ajuste);
   const minimo = Math.max(Math.round(basal), profile.sex === 'M' ? 1500 : 1200);
-  const metaAuto = Math.max(round10(tdee - deficit), minimo);
+  const metaAuto = Math.max(round10(tdee + ajuste), minimo);
   const manual = profile.target_mode === 'manual' && profile.manual_target_kcal;
   const meta = manual ? Number(profile.manual_target_kcal) : metaAuto;
 
-  const proteina = Math.round(peso * Number(profile.protein_g_per_kg));
-  const grasa = Math.round((meta * 0.25) / 9);
+  const pesoRef = pesoReferencia(peso, profile.height_cm);
+  const proteinaAuto = profile.proteina_auto !== false || !profile.protein_g_per_kg;
+  const proteinaGkg = proteinaAuto ? proteinaRecomendada(profile) : Number(profile.protein_g_per_kg);
+  const proteina = Math.round(pesoRef * proteinaGkg);
+  const grasa = Math.round(Math.max((meta * obj.grasaPct) / 9, pesoRef * 0.6));
   const carbos = Math.max(0, Math.round((meta - proteina * 4 - grasa * 9) / 4));
 
   return {
@@ -193,9 +256,17 @@ export function calcularMetas(profile, ctx, onISO) {
     adaptativo,
     tdee: Math.round(tdee),
     ajusteAdaptativo: tdee - tdeeFormula,
+    objetivo,
     ritmo,
-    ritmoLimitado: ritmo < Number(profile.goal_rate_kg_week),
+    ritmoLimitado: ritmo < pedido,
+    topePct: obj.topePct,
     deficit: Math.round(deficit),
+    superavit: Math.round(superavit),
+    pesoRef: Math.round(pesoRef * 10) / 10,
+    proteinaGkg,
+    proteinaAuto,
+    grasaPct: obj.grasaPct,
+    fibra: Math.round((meta / 1000) * 14),
     minimo,
     metaAuto,
     meta,
@@ -213,13 +284,24 @@ export function gastoDelDia(metas, kcalEjercicioDia) {
   return metas.base + kcalEjercicioDia * FACTOR_EJERCICIO + metas.ajusteAdaptativo;
 }
 
-/** sin: sin registro · bajo: registro probablemente incompleto · ok · leve: hasta +10% · exceso */
-export function estadoDia(kcal, meta) {
+/**
+ * Estado del día.
+ * Bajar de peso: ok hasta la meta · leve hasta +10% · exceso · bajo (< 60%, registro probablemente incompleto).
+ * Mantener, ganar músculo o subir: ok entre 90% y 110% de la meta · leve entre 80–90% o 110–120% ·
+ * exceso sobre 120% · bajo bajo el 80% (no alcanzó a comer lo necesario).
+ */
+export function estadoDia(kcal, meta, objetivo = 'bajar') {
   if (!kcal) return 'sin';
-  if (kcal < meta * 0.6) return 'bajo';
-  if (kcal <= meta) return 'ok';
-  if (kcal <= meta * 1.1) return 'leve';
-  return 'exceso';
+  if (objetivo === 'bajar' || !OBJETIVOS[objetivo]) {
+    if (kcal < meta * 0.6) return 'bajo';
+    if (kcal <= meta) return 'ok';
+    if (kcal <= meta * 1.1) return 'leve';
+    return 'exceso';
+  }
+  if (kcal < meta * 0.8) return 'bajo';
+  if (kcal > meta * 1.2) return 'exceso';
+  if (kcal >= meta * 0.9 && kcal <= meta * 1.1) return 'ok';
+  return 'leve';
 }
 
 export const ESTADOS = {
@@ -229,6 +311,17 @@ export const ESTADOS = {
   bajo: 'Muy bajo o incompleto',
   sin: 'Sin registro',
 };
+
+const ESTADOS_SUBIR = {
+  ok: 'En su meta (± 10%)',
+  leve: 'Cerca de la meta (± 20%)',
+  exceso: 'Sobre la meta (> 20%)',
+  bajo: 'Bajo la meta (< 80%)',
+  sin: 'Sin registro',
+};
+
+/** Nombres de los estados según el objetivo. */
+export const estadosDe = (objetivo) => (objetivo && objetivo !== 'bajar' ? ESTADOS_SUBIR : ESTADOS);
 
 function promedioPeso(weights, desde, hasta) {
   const w = weights.filter((x) => x.log_date >= desde && x.log_date <= hasta);
@@ -261,7 +354,7 @@ export function resumenSemana(lunesISO, ctx, metas, hoyISO) {
     kcal += it.kcal;
     proteina += it.protein_g;
     deficit += gastoDelDia(metas, ex?.kcal ?? 0) - it.kcal;
-    if (estadoDia(it.kcal, metas.meta) === 'ok') diasEnMeta++;
+    if (estadoDia(it.kcal, metas.meta, metas.objetivo) === 'ok') diasEnMeta++;
   }
   const pesoProm = promedioPeso(ctx.weights, lunesISO, domingo);
   const pesoAnterior = promedioPeso(ctx.weights, addDays(lunesISO, -7), addDays(lunesISO, -1));

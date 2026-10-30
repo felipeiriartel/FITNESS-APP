@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase.js';
 import { MESES, todayISO } from '../lib/dates.js';
 import { useData } from '../data.jsx';
 import { Icon, Spinner, Vacio } from '../components/ui.jsx';
-import Amigos from '../components/Amigos.jsx';
 import { useSocial } from '../social.jsx';
 
 const CADA_MS = 20000; // se actualiza cada 20 segundos mientras está abierta
@@ -35,9 +34,9 @@ function textoLider(filas, conPuntos) {
   return `Va ganando ${corto(filas[0])} con ${filas[0].puntos} pts`;
 }
 
-export default function Ranking() {
+export default function Ranking({ abrir }) {
   const { ctx } = useData();
-  const { soloAmigos } = useSocial();
+  const { soloAmigos, solicitudes } = useSocial();
   const hoy = todayISO();
   const [filas, setFilas] = useState(null); // null = cargando
   const [anterior, setAnterior] = useState(null);
@@ -68,7 +67,7 @@ export default function Ranking() {
       clearInterval(id);
       document.removeEventListener('visibilitychange', alVolver);
     };
-  }, [cargar, hoy, ctx]); // ctx cambia al registrar algo: se recalcula al tiro
+  }, [cargar, hoy, ctx, soloAmigos.length]); // ctx cambia al registrar algo; también al sumar amigos
 
   const [y, m, d] = hoy.split('-').map(Number);
   const diasMes = new Date(y, m, 0).getDate();
@@ -104,8 +103,14 @@ export default function Ranking() {
         </span>
       </header>
 
+      <button className={`btn block amigos-cta${soloAmigos.length ? '' : ' primary'}`} onClick={() => abrir('amigos')}>
+        <Icon name="amigos" size={20} />
+        {soloAmigos.length ? <>Amigos ({soloAmigos.length}) · Agregar más</> : 'Agregar amigos para competir'}
+        {solicitudes.length > 0 && <span className="cta-aviso">{solicitudes.length}</span>}
+      </button>
+
       {filas !== null && !soloAmigos.length && !error && (
-        <div className="alert info">El ranking es solo entre amigos. Busque a sus amigos abajo o mándeles su enlace de invitación para competir.</div>
+        <div className="alert info">El ranking es solo entre amigos. Toque «Amigos» para agregarlos o mándeles su enlace de invitación.</div>
       )}
 
       {filas !== null && !conPuntos && !error ? (
@@ -145,8 +150,6 @@ export default function Ranking() {
           ))}
         </ol>
       </section>}
-
-      <Amigos alCambiar={cargar} />
 
       <section className="card stack rank-rules">
         <h2>Cómo se suman puntos</h2>

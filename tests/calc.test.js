@@ -7,7 +7,7 @@ import { addDays, ageOn, startOfWeek, diffDays } from '../src/lib/dates.js';
 
 const perfil = {
   sex: 'M', birth_date: '2001-03-01', height_cm: 170, activity_level: 'sedentaria',
-  goal_rate_kg_week: 0.5, protein_g_per_kg: 1.7, usual_exercise_hours_week: 0, target_mode: 'auto', manual_target_kcal: null,
+  goal_rate_kg_week: 0.5, protein_g_per_kg: 1.7, proteina_auto: false, usual_exercise_hours_week: 0, target_mode: 'auto', manual_target_kcal: null,
 };
 
 test('fechas', () => {
@@ -150,4 +150,34 @@ test('análisis semanal: déficit, baja esperada y veredicto', () => {
   assert.ok(['segun-lo-esperado', 'mas-de-lo-esperado', 'menos-de-lo-esperado'].includes(a.veredicto));
   const pocos = analisisSemana(lunesAnterior, ctx, metas, hoy);
   assert.equal(pocos.veredicto, 'pocos-registros');
+});
+
+test('objetivos: proteína automática, superávit y topes', () => {
+  const ctx = construirContexto({ weights: [{ log_date: '2026-10-13', weight_kg: 80 }], meals: [], exercises: [], water: [] });
+  const base = { ...perfil, proteina_auto: true, usual_exercise_hours_week: 4 };
+  const bajar = calcularMetas({ ...base, objetivo: 'bajar' }, ctx, '2026-10-13');
+  assert.equal(bajar.proteinaGkg, 2.0);
+  assert.equal(bajar.proteina, 160);
+  const mantener = calcularMetas({ ...base, objetivo: 'mantener', goal_rate_kg_week: 0.5 }, ctx, '2026-10-13');
+  assert.equal(mantener.metaAuto, Math.round(mantener.tdee / 10) * 10); // sin déficit ni superávit
+  assert.equal(mantener.proteinaGkg, 1.6);
+  const musculo = calcularMetas({ ...base, objetivo: 'musculo', goal_rate_kg_week: 0.3 }, ctx, '2026-10-13');
+  assert.equal(musculo.ritmo, 0.3); // 0,5 % de 80 kg = 0,4: no se limita
+  assert.equal(musculo.superavit, 330);
+  assert.ok(musculo.meta > musculo.tdee);
+  assert.ok(musculo.grasa * 9 / musculo.meta >= 0.2);
+  const subir = calcularMetas({ ...base, objetivo: 'subir', goal_rate_kg_week: 1 }, ctx, '2026-10-13');
+  assert.equal(subir.ritmo, 0.6); // tope 0,75 % del peso
+  // Con IMC ≥ 30 la proteína usa el peso ajustado.
+  const ctx2 = construirContexto({ weights: [{ log_date: '2026-10-13', weight_kg: 110 }], meals: [], exercises: [], water: [] });
+  const obeso = calcularMetas({ ...base, objetivo: 'bajar' }, ctx2, '2026-10-13');
+  assert.ok(obeso.pesoRef < 110 && obeso.pesoRef > 72);
+});
+
+test('estado del día según objetivo', () => {
+  assert.equal(estadoDia(1900, 2000, 'bajar'), 'ok');
+  assert.equal(estadoDia(1500, 2000, 'musculo'), 'bajo');
+  assert.equal(estadoDia(1700, 2000, 'musculo'), 'leve');
+  assert.equal(estadoDia(2100, 2000, 'subir'), 'ok');
+  assert.equal(estadoDia(2500, 2000, 'mantener'), 'exceso');
 });
