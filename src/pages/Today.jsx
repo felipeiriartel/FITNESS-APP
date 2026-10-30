@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { EJERCICIOS, ESTADOS, FACTOR_EJERCICIO, TIPOS_COMIDA, estadoDia, gastoDelDia, racha } from '../lib/calc.js';
+import { EJERCICIOS, estadosDe, FACTOR_EJERCICIO, TIPOS_COMIDA, estadoDia, gastoDelDia, racha } from '../lib/calc.js';
 import { addDays, formatCorto, formatLargo, fromISO, todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
@@ -11,10 +11,13 @@ import { useFotos } from '../lib/useFotos.js';
 import WeeklyCard from '../components/WeeklyCard.jsx';
 import NotifButton from '../components/NotifButton.jsx';
 import ComidasRecibidas from '../components/ComidasRecibidas.jsx';
+import { AmigosAviso } from '../components/Amigos.jsx';
 import { AvisoPrueba } from '../components/Suscripcion.jsx';
 
+const iniciales = (n) => (n ?? '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+
 export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes }) {
-  const { metas, ctx, exercises, water, weights, reload } = useData();
+  const { metas, ctx, exercises, water, weights, reload, profile } = useData();
   const toast = useToast();
   const [meals, setMeals] = useState([]);
   const hoy = todayISO();
@@ -34,7 +37,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
   const ejerciciosDia = exercises.filter((e) => e.log_date === fecha);
   const kcalEj = ejerciciosDia.reduce((s, e) => s + e.kcal_est, 0);
   const aguaDia = ctx.waterByDate.get(fecha) ?? 0;
-  const estado = estadoDia(consumo.kcal, metas.meta);
+  const estado = estadoDia(consumo.kcal, metas.meta, metas.objetivo);
   const restante = metas.meta - consumo.kcal;
   const gasto = gastoDelDia(metas, kcalEj);
   const extraEjercicio = Math.round(kcalEj * FACTOR_EJERCICIO);
@@ -76,13 +79,16 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
           <button className="icon-btn round" onClick={() => irDia(-1)} aria-label="Día anterior"><Icon name="izq" /></button>
           <button className="icon-btn round" onClick={() => irDia(1)} aria-label="Día siguiente" disabled={fecha >= hoy}><Icon name="der" /></button>
           <NotifButton irAAjustes={irAAjustes} />
+          <button className="avatar-btn" onClick={irAAjustes} aria-label="Mi perfil y ajustes">
+            {iniciales(profile?.display_name) || <Icon name="usuario" size={20} />}
+          </button>
         </div>
       </header>
 
       <div key={fecha} className={`stack ${dir.current}`}>
       <section className="anden" aria-label="Resumen de calorías">
         <div className="anden-top">
-          <Pill estado={estado}>{ESTADOS[estado]}</Pill>
+          <Pill estado={estado}>{estadosDe(metas.objetivo)[estado]}</Pill>
           {fecha === hoy && r.actual > 0 && (
             <span className={`racha${r.hoyRegistrado ? '' : ' pendiente'}`}
               title={r.hoyRegistrado ? `Récord: ${r.mejor} días` : 'Registre algo hoy para mantener la racha'}>
@@ -110,7 +116,9 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
         <div className="day-balance">
           {fecha === hoy || !consumo.kcal ? (
             <span className={previsto > 0 ? 'deficit' : 'superavit'}>
-              Si llega a la meta, su déficit {fecha === hoy ? 'de hoy' : 'del día'} será de <b className="num">{fmt(Math.max(0, previsto))} kcal</b>
+              {metas.objetivo === 'mantener' && Math.abs(previsto) < 50
+                ? <>Si llega a la meta, comerá lo mismo que gasta.</>
+                : <>Si llega a la meta, su {previsto >= 0 ? 'déficit' : 'superávit'} {fecha === hoy ? 'de hoy' : 'del día'} será de <b className="num">{fmt(Math.abs(previsto))} kcal</b></>}
             </span>
           ) : (
             <span className={balance < 0 ? 'deficit' : 'superavit'}>
@@ -137,6 +145,7 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
       </button>
 
       {fecha === hoy && <AvisoPrueba irAAjustes={irAAjustes} />}
+      {fecha === hoy && <AmigosAviso abrir={abrir} />}
       <ComidasRecibidas abrir={abrir} />
 
       {fecha === hoy && esLunes && <WeeklyCard semana="pasada" compacto onVerMas={irAProgreso} />}

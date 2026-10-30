@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { EJERCICIOS, NIVELES_ACTIVIDAD, TIPOS_COMIDA, descripcionIntensidad, kcalEjercicio } from '../lib/calc.js';
+import { EJERCICIOS, NIVELES_ACTIVIDAD, OBJETIVOS, TIPOS_COMIDA, descripcionIntensidad, kcalEjercicio, proteinaRecomendada } from '../lib/calc.js';
+
+const ICONO_OBJETIVO = { bajar: 'bajar', mantener: 'mantener', musculo: 'ejercicio', subir: 'progreso' };
 import { todayISO } from '../lib/dates.js';
 import { fmt } from '../lib/format.js';
 import { useData } from '../data.jsx';
@@ -341,8 +343,9 @@ export function ProfileForm({ inicial, conPeso, onSaved, textoBoton = 'Guardar' 
     birth_date: inicial?.birth_date ?? '',
     height_cm: inicial?.height_cm ?? '',
     activity_level: inicial?.activity_level ?? 'sedentaria',
+    objetivo: inicial?.objetivo ?? 'bajar',
     goal_rate_kg_week: inicial?.goal_rate_kg_week ?? 0.5,
-    protein_g_per_kg: inicial?.protein_g_per_kg ?? 1.7,
+    protein_g_per_kg: inicial && inicial.proteina_auto === false ? inicial.protein_g_per_kg : '', // vacío = automática según objetivo
     usual_exercise_hours_week: inicial?.usual_exercise_hours_week ?? '',
     target_mode: inicial?.target_mode ?? 'auto',
     manual_target_kcal: inicial?.manual_target_kcal ?? '',
@@ -373,8 +376,10 @@ export function ProfileForm({ inicial, conPeso, onSaved, textoBoton = 'Guardar' 
       birth_date: f.birth_date,
       height_cm: h,
       activity_level: f.activity_level,
-      goal_rate_kg_week: Number(f.goal_rate_kg_week),
-      protein_g_per_kg: Number(f.protein_g_per_kg),
+      objetivo: f.objetivo,
+      goal_rate_kg_week: f.objetivo === 'mantener' ? 0 : Number(f.goal_rate_kg_week),
+      proteina_auto: f.protein_g_per_kg === '',
+      protein_g_per_kg: f.protein_g_per_kg === '' ? proteinaRecomendada({ objetivo: f.objetivo, usual_exercise_hours_week: horas }) : Number(f.protein_g_per_kg),
       usual_exercise_hours_week: horas,
       target_mode: f.target_mode,
       manual_target_kcal: manual,
@@ -437,28 +442,47 @@ export function ProfileForm({ inicial, conPeso, onSaved, textoBoton = 'Guardar' 
         <input inputMode="decimal" value={f.usual_exercise_hours_week} onChange={set('usual_exercise_hours_week')} placeholder="Ej: 6" />
         <small>Se usa al inicio; con 4 semanas de registros, la app calcula con su ejercicio real.</small>
       </label>
+      <div className="stack" style={{ gap: 6 }}>
+        <span className="field-label">¿Cuál es su objetivo?</span>
+        <div className="objetivos" role="radiogroup" aria-label="Objetivo">
+          {Object.entries(OBJETIVOS).map(([id, o]) => (
+            <button type="button" key={id} role="radio" aria-checked={f.objetivo === id}
+              className={`objetivo${f.objetivo === id ? ' on' : ''}`}
+              onClick={() => setF((p) => ({ ...p, objetivo: id, goal_rate_kg_week: o.ritmoDef }))}>
+              <Icon name={ICONO_OBJETIVO[id]} size={22} />
+              <b>{o.label}</b>
+              <small>{o.detalle}</small>
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="grid2 resp-1">
-        <label className="field">
-          Ritmo de baja deseado
-          <select value={f.goal_rate_kg_week} onChange={set('goal_rate_kg_week')}>
-            <option value={0}>Mantener peso</option>
-            <option value={0.25}>0,25 kg por semana</option>
-            <option value={0.5}>0,5 kg por semana (recomendado)</option>
-            <option value={0.75}>0,75 kg por semana</option>
-            <option value={1}>1 kg por semana</option>
-          </select>
-        </label>
+        {f.objetivo !== 'mantener' && (
+          <label className="field">
+            {OBJETIVOS[f.objetivo].signo < 0 ? 'Ritmo de baja' : 'Ritmo de subida'}
+            <select value={f.goal_rate_kg_week} onChange={set('goal_rate_kg_week')}>
+              {OBJETIVOS[f.objetivo].ritmos.map((r) => (
+                <option key={r} value={r}>
+                  {String(r).replace('.', ',')} kg por semana{r === OBJETIVOS[f.objetivo].ritmoDef ? ' (recomendado)' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="field">
           Proteína diaria
           <select value={f.protein_g_per_kg} onChange={set('protein_g_per_kg')}>
-            <option value={1.2}>1,2 g/kg (sin entrenamiento de fuerza)</option>
+            <option value="">Automática: {proteinaRecomendada({ objetivo: f.objetivo, usual_exercise_hours_week: f.usual_exercise_hours_week }).toFixed(1).replace('.', ',')} g/kg (recomendada)</option>
+            <option value={1.2}>1,2 g/kg</option>
             <option value={1.6}>1,6 g/kg</option>
-            <option value={1.7}>1,7 g/kg (recomendado con pesas)</option>
             <option value={2}>2,0 g/kg</option>
             <option value={2.2}>2,2 g/kg</option>
           </select>
         </label>
       </div>
+      {f.objetivo === 'musculo' && (
+        <small className="alert info">Para ganar músculo necesita entrenamiento de fuerza al menos 2 a 3 veces por semana; sin él, el superávit se convierte sobre todo en grasa.</small>
+      )}
       <div className="stack" style={{ gap: 4 }}>
         <small className="muted">Meta de calorías</small>
         <div className="seg">
@@ -475,8 +499,9 @@ export function ProfileForm({ inicial, conPeso, onSaved, textoBoton = 'Guardar' 
         )}
       </div>
       <p className="muted" style={{ fontSize: '0.82rem' }}>
-        Por seguridad, la meta automática nunca baja de su metabolismo basal ni de 1.500 kcal (hombres) o 1.200 kcal (mujeres),
-        y el ritmo se limita al 1% del peso corporal por semana.
+        Por seguridad, la meta automática nunca baja de su metabolismo basal ni de 1.500 kcal (hombres) o 1.200 kcal (mujeres).
+        El ritmo se limita a 1% del peso por semana al bajar, 0,5% al ganar músculo y 0,75% al subir de peso.
+        Los macros siguen las recomendaciones de la ISSN y del Institute of Medicine; vea el detalle en Progreso.
       </p>
       <ErrorBox>{error}</ErrorBox>
       <button className="btn primary big block" disabled={ocupado} onClick={guardar}>{ocupado ? 'Guardando…' : textoBoton}</button>

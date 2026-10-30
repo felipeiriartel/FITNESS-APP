@@ -11,6 +11,7 @@ import Ranking from './pages/Ranking.jsx';
 import MealForm, { desdeComida } from './components/MealForm.jsx';
 import { SocialProvider, useSocial } from './social.jsx';
 import { Paywall } from './components/Suscripcion.jsx';
+import { AmigosSheet } from './components/Amigos.jsx';
 import QuickActions from './components/QuickActions.jsx';
 import BarcodeScanner from './components/BarcodeScanner.jsx';
 import Suggestions from './components/Suggestions.jsx';
@@ -168,7 +169,7 @@ function Shell({ email }) {
         <div className="page" key={tab}>
           {tab === 'hoy' && <Today fecha={fecha} setFecha={setFecha} abrir={abrir} irAProgreso={() => irA('progreso')} irAAjustes={() => irA('ajustes')} />}
           {tab === 'calendario' && <CalendarPage abrirDia={abrirDia} />}
-          {tab === 'ranking' && <Ranking />}
+          {tab === 'ranking' && <Ranking abrir={abrir} />}
           {tab === 'progreso' && <Progress abrir={abrir} irAAjustes={() => irA('ajustes')} />}
           {tab === 'ajustes' && <Settings email={email} volver={() => irA(desde === 'ajustes' ? 'hoy' : desde)} />}
         </div>
@@ -203,6 +204,7 @@ function Shell({ email }) {
             cerrar();
           }} />
       )}
+      {a === 'amigos' && <AmigosSheet onClose={cerrar} />}
       {a === 'copiar' && <CopyDay fecha={fechaRegistro} onClose={cerrar} />}
       {a === 'texto' && <MealForm key="texto" modo="texto" fecha={fechaRegistro} onClose={cerrar} />}
       {a === 'codigo' && <BarcodeScanner fecha={fechaRegistro} onClose={cerrar} abrir={abrir} />}
