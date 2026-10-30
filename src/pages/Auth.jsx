@@ -18,7 +18,7 @@ export default function Auth() {
     const redirectTo = window.location.origin;
     let r;
     if (modo === 'entrar') r = await supabase.auth.signInWithPassword({ email, password: clave });
-    else if (modo === 'registrar') r = await supabase.auth.signUp({ email, password: clave, options: { emailRedirectTo: redirectTo } });
+    else if (modo === 'registrar') r = await supabase.auth.signUp({ email, password: clave, options: { emailRedirectTo: `${redirectTo}/verificado.html` } });
     else r = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     setOcupado(false);
     if (r.error) return setError(traducir(r.error.message));
