@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#050605" />
+<meta name="robots" content="noindex" />
+<title>Correo verificado · Comidia</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,500..900&family=Atkinson+Hyperlegible+Next:wght@400..800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #050605; --s1: #0d0f0e; --line: #262a27; --line-2: #3b413d;
+    --ink: #f4f6f3; --muted: #a7b0a9; --linea: #33e07c; --on-linea: #03140a; --aji: #ff6352;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); }
+  body {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px;
+    font: 17px/1.5 'Atkinson Hyperlegible Next', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  .card {
+    width: 100%; max-width: 400px; background: var(--s1); border: 1px solid var(--line-2);
+    border-radius: 16px; padding: 32px 24px; text-align: center;
+  }
+  .logo { height: 40px; margin: 0 auto 24px; display: block; }
+  .icono {
+    width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--linea); color: var(--on-linea); font: 900 34px/1 'Big Shoulders', sans-serif;
+  }
+  .error .icono { background: var(--aji); color: #1a0503; }
+  h1 {
+    margin: 0 0 8px; font: 800 2rem/1.05 'Big Shoulders', 'Arial Narrow', sans-serif;
+    text-transform: uppercase; letter-spacing: .02em;
+  }
+  p { margin: 0; color: var(--muted); }
+</style>
+</head>
+<body>
+  <main class="card" id="card">
+    <img class="logo" src="/logo.svg" alt="Comidia" />
+    <div class="icono" id="icono" aria-hidden="true">✓</div>
+    <h1 id="titulo">Correo verificado</h1>
+    <p id="mensaje">Su cuenta ya está activa. Puede cerrar esta página, volver a Comidia e ingresar con su correo y contraseña.</p>
+  </main>
+<script>
+  // Si el enlace expiró o ya se usó, Supabase agrega el error en la URL.
+  var p = new URLSearchParams(location.hash.slice(1) + '&' + location.search.slice(1));
+  if (p.get('error') || p.get('error_code')) {
+    document.getElementById('card').className = 'card error';
+    document.getElementById('icono').textContent = '!';
+    document.getElementById('titulo').textContent = 'Enlace no válido';
+    document.getElementById('mensaje').textContent =
+      'Puede que haya expirado o que ya lo haya usado. Vuelva a Comidia e intente ingresar; si no puede, cree la cuenta de nuevo para recibir otro correo.';
+  }
+  // Quita los tokens de la barra de direcciones.
+  if (location.hash || location.search) history.replaceState(null, '', location.pathname);
+</script>
+</body>
+</html>
