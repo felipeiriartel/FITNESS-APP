@@ -8,13 +8,26 @@ import CalendarPage from './pages/CalendarPage.jsx';
 import Progress from './pages/Progress.jsx';
 import Settings from './pages/Settings.jsx';
 import Ranking from './pages/Ranking.jsx';
-import MealForm from './components/MealForm.jsx';
+import MealForm, { desdeComida } from './components/MealForm.jsx';
+import { SocialProvider, useSocial } from './social.jsx';
+import { Paywall } from './components/Suscripcion.jsx';
 import QuickActions from './components/QuickActions.jsx';
 import BarcodeScanner from './components/BarcodeScanner.jsx';
 import Suggestions from './components/Suggestions.jsx';
 import CopyDay from './components/CopyDay.jsx';
 import { ExerciseForm, FavoritesPicker, ProfileForm, WeightForm } from './components/forms.jsx';
-import { ErrorBox, Icon, Logo, ToastProvider } from './components/ui.jsx';
+import { ErrorBox, Icon, Logo, ToastProvider, useToast } from './components/ui.jsx';
+
+// Enlace de invitación (?invita=CODIGO): se guarda para usarlo al crear la cuenta.
+if (typeof window !== 'undefined') {
+  const codigo = new URLSearchParams(window.location.search).get('invita');
+  if (codigo) {
+    try { localStorage.setItem('comidia_invita', codigo.trim().toUpperCase()); } catch { /* sin almacenamiento */ }
+    const u = new URL(window.location.href);
+    u.searchParams.delete('invita');
+    window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash);
+  }
+}
 
 export default function App() {
   const [session, setSession] = useState(undefined);
@@ -49,7 +62,9 @@ export default function App() {
   } else {
     contenido = (
       <DataProvider userId={session.user.id}>
-        <Shell email={session.user.email} />
+        <SocialProvider>
+          <Shell email={session.user.email} />
+        </SocialProvider>
       </DataProvider>
     );
   }
@@ -76,11 +91,30 @@ const TABS = [
 
 function Shell({ email }) {
   const { loading, error, profile, weights, metas } = useData();
+  const { sus, solicitudes, cargarRecibidas, sincronizar } = useSocial();
+  const toast = useToast();
   const [tab, setTab] = useState('hoy');
   const [desde, setDesde] = useState('hoy'); // pestaña anterior, para volver desde Ajustes
   const [fecha, setFecha] = useState(todayISO());
   // { id: menu | comida | texto | codigo | sugerir | favoritas | ejercicio | peso, datos }
   const [accion, setAccion] = useState(null);
+
+  // Vuelta desde Flow (?suscripcion=ok|cancelado|error).
+  useEffect(() => {
+    const u = new URL(window.location.href);
+    const r = u.searchParams.get('suscripcion');
+    if (!r) return;
+    u.searchParams.delete('suscripcion');
+    window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash);
+    if (r === 'ok') {
+      toast('¡Listo! Su suscripción quedó activa.');
+      sincronizar();
+    } else if (r === 'cancelado') {
+      toast('No se registró la tarjeta. Puede intentarlo de nuevo en Ajustes.', 'error');
+    } else {
+      toast('Hubo un problema con el pago. Intente de nuevo en Ajustes.', 'error');
+    }
+  }, [toast, sincronizar]);
 
   if (loading) return <Cargando texto="Cargando sus datos…" />;
   if (error && !profile) {
@@ -108,6 +142,8 @@ function Shell({ email }) {
       </div>
     );
   }
+
+  if (sus && !sus.acceso) return <Paywall />;
 
   const irA = (id) => {
     if (id !== tab) setDesde(tab);
@@ -147,7 +183,7 @@ function Shell({ email }) {
               <Icon name="mas" stroke={3} />
             </button>
           </div>
-          {TABS.slice(2).map((t) => <Tab key={t.id} t={t} on={tab === t.id} onClick={() => irA(t.id)} />)}
+          {TABS.slice(2).map((t) => <Tab key={t.id} t={t} on={tab === t.id} aviso={t.id === 'ranking' && solicitudes.length > 0} onClick={() => irA(t.id)} />)}
         </div>
       </nav>
 
@@ -155,6 +191,17 @@ function Shell({ email }) {
       {a === 'comida' && (
         <MealForm key={accion.datos?.editar?.id ?? 'foto'} fecha={accion.datos?.editar?.log_date ?? fechaRegistro} onClose={cerrar}
           inicial={accion.datos?.inicial} editar={accion.datos?.editar} />
+      )}
+      {a === 'compartida' && (
+        <MealForm key={`compartida-${accion.datos.id}`} fecha={accion.datos.log_date}
+          inicial={{ ...desdeComida(accion.datos), titulo: `Comida de ${accion.datos.de_nombre.split(' ')[0]}`, compartida: true }}
+          onClose={async (ok) => {
+            if (ok) {
+              await supabase.from('comidas_compartidas').update({ estado: 'aceptada', respondida_at: new Date().toISOString() }).eq('id', accion.datos.id);
+              cargarRecibidas();
+            }
+            cerrar();
+          }} />
       )}
       {a === 'copiar' && <CopyDay fecha={fechaRegistro} onClose={cerrar} />}
       {a === 'texto' && <MealForm key="texto" modo="texto" fecha={fechaRegistro} onClose={cerrar} />}
@@ -169,10 +216,11 @@ function Shell({ email }) {
   );
 }
 
-function Tab({ t, on, onClick }) {
+function Tab({ t, on, onClick, aviso }) {
   return (
-    <button className={`tab${on ? ' on' : ''}`} onClick={onClick} aria-current={on ? 'page' : undefined}>
-      <Icon name={t.icon} stroke={on ? 2.4 : 2} />
+    <button className={`tab${on ? ' on' : ''}`} onClick={onClick} aria-current={on ? 'page' : undefined}
+      aria-label={aviso ? `${t.label}, solicitud de amistad pendiente` : undefined}>
+      <span className="tab-ico"><Icon name={t.icon} stroke={on ? 2.4 : 2} />{aviso && <i className="tab-aviso" aria-hidden="true" />}</span>
       {t.label}
     </button>
   );

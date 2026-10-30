@@ -126,3 +126,18 @@ Alternativa sin GitHub: ejecute `npm run build` con el `.env` completo y arrastr
 ## Aviso
 
 Las cifras son estimaciones de apoyo. La precisión de la IA mejora mucho cuando se indican gramos, preparación o se fotografía la etiqueta nutricional. La app no reemplaza la evaluación de un nutricionista o médico.
+
+## Amigos, comidas compartidas y suscripción (migración 006)
+
+- **Amigos:** se buscan por nombre en la pestaña Ranking o con el enlace de invitación (`/?invita=CÓDIGO`). El ranking muestra solo a la persona y sus amigos.
+- **Comidas compartidas:** al guardar una comida se puede enviar a amigos; ellos la revisan en Hoy y la agregan o la descartan.
+- **Suscripción:** 10 días de prueba sin tarjeta (15 si llega invitado; quien invita suma 5 días, hasta 30). Luego $4.990 al mes con Flow. Las cuentas con `suscripciones.gratis = true` no pagan.
+
+Para activar los pagos:
+
+```bash
+supabase functions deploy flow --no-verify-jwt
+supabase secrets set FLOW_API_KEY=... FLOW_SECRET_KEY=... FLOW_API_URL=https://www.flow.cl/api
+```
+
+Sin `FLOW_API_URL` se usa el sandbox de Flow (`https://sandbox.flow.cl/api`). El plan `comidia-mensual` se crea solo en Flow con el primer pago.

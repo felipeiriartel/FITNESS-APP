@@ -2,8 +2,17 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { ErrorBox, Logo } from '../components/ui.jsx';
 
+function codigoInvitacion() {
+  try {
+    return localStorage.getItem('comidia_invita') || '';
+  } catch {
+    return '';
+  }
+}
+
 export default function Auth() {
-  const [modo, setModo] = useState('entrar'); // entrar | registrar | recuperar
+  const invita = codigoInvitacion();
+  const [modo, setModo] = useState(invita ? 'registrar' : 'entrar'); // entrar | registrar | recuperar
   const [email, setEmail] = useState('');
   const [clave, setClave] = useState('');
   const [error, setError] = useState(null);
@@ -18,7 +27,7 @@ export default function Auth() {
     const redirectTo = window.location.origin;
     let r;
     if (modo === 'entrar') r = await supabase.auth.signInWithPassword({ email, password: clave });
-    else if (modo === 'registrar') r = await supabase.auth.signUp({ email, password: clave, options: { emailRedirectTo: `${redirectTo}/verificado.html` } });
+    else if (modo === 'registrar') r = await supabase.auth.signUp({ email, password: clave, options: { emailRedirectTo: `${redirectTo}/verificado.html`, data: invita ? { invita } : undefined } });
     else r = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     setOcupado(false);
     if (r.error) return setError(traducir(r.error.message));
@@ -47,6 +56,9 @@ export default function Auth() {
             <input type="password" autoComplete={modo === 'entrar' ? 'current-password' : 'new-password'} required minLength={6}
               value={clave} onChange={(e) => setClave(e.target.value)} />
           </label>
+        )}
+        {invita && modo === 'registrar' && !aviso && (
+          <div className="alert info">Lo invitaron a Comidia: al crear su cuenta tendrá <b>15 días gratis</b> y quedarán como amigos en el ranking.</div>
         )}
         <ErrorBox>{error}</ErrorBox>
         {aviso && <div className="alert info">{aviso}</div>}
