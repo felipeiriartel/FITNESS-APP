@@ -369,12 +369,13 @@ insert into public.suscripciones (user_id, prueba_hasta)
 select id, now() + interval '10 days' from auth.users
 on conflict (user_id) do nothing;
 
--- Cuentas gratis: Felipe, Alonso, Ignacia y Simón.
+-- Cuentas gratis: Felipe, Alonso, Ignacia, Simón y Franklin.
 update public.suscripciones s set gratis = true
 from auth.users u
 where u.id = s.user_id
   and lower(u.email) in ('borussi20131013@gmail.com', 'alonsirifc2020@gmail.com',
-                         'ignaciaolivaresss1@gmail.com', 'simonaraya2@gmail.com');
+                         'ignaciaolivaresss1@gmail.com', 'simonaraya2@gmail.com',
+                         'frankliniriarte@gmail.com');
 
 -- El grupo que ya competía queda como amigos entre sí, para que el ranking no se vacíe.
 insert into public.amistades (solicitante, destinatario, estado, aceptada_at)
