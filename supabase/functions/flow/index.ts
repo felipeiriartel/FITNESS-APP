@@ -83,8 +83,15 @@ async function sincronizar(userId: string, subscriptionId: string) {
   let estado = "activa";
   if (status === 4 || Number(s.cancel_at_period_end) === 1) estado = "cancelada";
   else if (morosa) estado = "morosa";
-  await db.from("suscripciones").update({ estado, pagado_hasta: fin, sincronizado_at: new Date().toISOString() }).eq("user_id", userId);
-  return { estado, pagado_hasta: fin };
+  // Al cancelar se mantiene el acceso hasta el fin del mes ya pagado: la fecha nunca se acorta.
+  let hasta = fin;
+  if (estado === "cancelada") {
+    const { data: actual } = await db.from("suscripciones").select("pagado_hasta").eq("user_id", userId).maybeSingle();
+    const previo = actual?.pagado_hasta ? new Date(actual.pagado_hasta).getTime() : 0;
+    if (!hasta || previo > new Date(hasta).getTime()) hasta = actual?.pagado_hasta ?? null;
+  }
+  await db.from("suscripciones").update({ estado, pagado_hasta: hasta, sincronizado_at: new Date().toISOString() }).eq("user_id", userId);
+  return { estado, pagado_hasta: hasta };
 }
 
 async function usuarioDeSesion(req: Request) {
