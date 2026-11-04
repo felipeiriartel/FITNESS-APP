@@ -12,10 +12,27 @@ import WeeklyCard from '../components/WeeklyCard.jsx';
 import NotifButton from '../components/NotifButton.jsx';
 
 export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes }) {
-  const { metas, ctx, exercises, water, weights, reload } = useData();
+  const { metasDe, avisoMeta, ctx, exercises, water, weights, reload } = useData();
   const toast = useToast();
   const [meals, setMeals] = useState([]);
   const hoy = todayISO();
+  const metas = metasDe(fecha); // la meta de la semana del día que se está viendo
+  const claveAviso = avisoMeta ? `comidia-aviso-meta-${avisoMeta.lunes}` : null;
+  const [avisoVisto, setAvisoVisto] = useState(() => {
+    try {
+      return claveAviso ? localStorage.getItem(claveAviso) === '1' : false;
+    } catch {
+      return false;
+    }
+  });
+  const cerrarAviso = () => {
+    setAvisoVisto(true);
+    try {
+      localStorage.setItem(claveAviso, '1');
+    } catch {
+      /* sin almacenamiento */
+    }
+  };
 
   const cargar = useCallback(async () => {
     const { data } = await supabase.from('meals').select('*').eq('log_date', fecha).order('created_at');
@@ -76,6 +93,15 @@ export default function Today({ fecha, setFecha, abrir, irAProgreso, irAAjustes 
           <NotifButton irAAjustes={irAAjustes} />
         </div>
       </header>
+
+      {fecha === hoy && avisoMeta && !avisoVisto && (
+        <div className="alert info" role="status">
+          <b>Su meta de esta semana cambió: {fmt(avisoMeta.antes)} → {fmt(avisoMeta.ahora)} kcal.</b>
+          {avisoMeta.motivos.map((m) => <div key={m}>{m}</div>)}
+          <div><small>La meta se recalcula una vez por semana, los lunes. Los días que ya cerró no cambian.</small></div>
+          <button className="btn small ghost" onClick={cerrarAviso}>Entendido</button>
+        </div>
+      )}
 
       <div key={fecha} className={`stack ${dir.current}`}>
       <section className="anden" aria-label="Resumen de calorías">

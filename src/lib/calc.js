@@ -1,11 +1,16 @@
 // Cálculos nutricionales de Comidia.
 // Todas las funciones son puras para poder probarlas sin la interfaz.
-import { addDays, ageOn, diffDays } from './dates.js';
+import { addDays, ageOn, diffDays, startOfWeek } from './dates.js';
 
 export const KCAL_POR_KG = 7700;
 /** Solo se cuenta el 75% del gasto estimado por ejercicio (las fórmulas tienden a sobreestimarlo). */
 export const FACTOR_EJERCICIO = 0.75;
 export const VENTANA_DIAS = 28;
+/**
+ * Peso máximo del ejercicio registrado frente al declarado en el perfil. Lo declarado cubre lo que
+ * no se anota (caminar, subir escaleras, trabajo de pie), así que nunca se descarta del todo.
+ */
+export const PESO_EJERCICIO_REGISTRADO = 0.5;
 
 export const NIVELES_ACTIVIDAD = {
   sedentaria: { factor: 1.2, label: 'Sedentaria', detalle: 'Trabajo sentado, pocos pasos al día' },
@@ -104,8 +109,9 @@ export function regresion(puntos) {
 
 /**
  * Gasto diario promedio por ejercicio (ya ajustado por FACTOR_EJERCICIO).
- * Mientras hay poco historial, se combina con las horas habituales declaradas en el perfil
- * (MET promedio 6); con 28 días de historial se usa solo lo registrado.
+ * Es un promedio entre las horas habituales declaradas en el perfil (MET promedio 6) y lo registrado.
+ * Al inicio pesa solo lo declarado; el registrado va ganando peso hasta llegar al 50% a los 14 días
+ * y ahí se queda. Si lo registrado supera a lo declarado, se usa lo registrado.
  */
 export function ejercicioPromedioDiario(exerciseByDate, onISO, inicioISO, horasHabituales = 0, pesoKg = 70) {
   const habitual = (Number(horasHabituales) * (6 - 1) * pesoKg * FACTOR_EJERCICIO) / 7;
@@ -115,8 +121,8 @@ export function ejercicioPromedioDiario(exerciseByDate, onISO, inicioISO, horasH
   let total = 0;
   for (let i = 1; i <= dias; i++) total += exerciseByDate.get(addDays(onISO, -i))?.kcal ?? 0;
   const registrado = (total * FACTOR_EJERCICIO) / dias;
-  const w = historia / VENTANA_DIAS;
-  return registrado * w + habitual * (1 - w);
+  const w = Math.min(historia / VENTANA_DIAS, PESO_EJERCICIO_REGISTRADO);
+  return Math.max(registrado * w + habitual * (1 - w), registrado);
 }
 
 /**
@@ -206,6 +212,53 @@ export function calcularMetas(profile, ctx, onISO) {
     carbos,
     agua: Math.round((peso * 35) / 50) * 50,
   };
+}
+
+/**
+ * Metas vigentes para la semana (lunes a domingo) que contiene la fecha.
+ * Se calculan con los datos hasta el lunes, así que no cambian durante la semana y los días ya
+ * cerrados conservan su estado. Los cambios del perfil sí se aplican de inmediato.
+ */
+export function calcularMetasSemana(profile, ctx, onISO) {
+  return calcularMetas(profile, ctx, startOfWeek(onISO));
+}
+
+const kg1 = (n) => n.toFixed(1).replace('.', ',');
+
+/** Explica en lenguaje simple por qué cambió la meta entre dos semanas. */
+export function motivosCambioMeta(antes, ahora) {
+  const motivos = [];
+  const dPeso = ahora.peso - antes.peso;
+  if (Math.abs(dPeso) >= 0.2) {
+    motivos.push(`Su peso promedio ${dPeso < 0 ? 'bajó' : 'subió'} de ${kg1(antes.peso)} a ${kg1(ahora.peso)} kg.`);
+  }
+  const dEj = ahora.ejercicio - antes.ejercicio;
+  if (Math.abs(dEj) >= 10) {
+    motivos.push(`Su ejercicio promedio ${dEj < 0 ? 'bajó' : 'subió'} de ${antes.ejercicio} a ${ahora.ejercicio} kcal al día (mezcla de lo que declaró y lo que registró).`);
+  }
+  if (Math.abs(ahora.ajusteAdaptativo - antes.ajusteAdaptativo) >= 10) {
+    motivos.push('Se ajustó su gasto según lo que comió y cómo cambió su peso.');
+  }
+  if (Math.abs(ahora.deficit - antes.deficit) >= 10) {
+    motivos.push('Cambió el déficit diario necesario para su ritmo de pérdida.');
+  }
+  return motivos;
+}
+
+/**
+ * Cambio de la meta automática respecto de la semana anterior, para avisar a la persona.
+ * Devuelve null si no hay cambio relevante (menos de 20 kcal), si la meta es manual o si la cuenta es nueva.
+ */
+export function cambioMetaSemanal(profile, ctx, hoyISO) {
+  if (!profile || (profile.target_mode === 'manual' && profile.manual_target_kcal)) return null;
+  const lunes = startOfWeek(hoyISO);
+  if (!ctx.inicioISO || ctx.inicioISO >= lunes) return null;
+  const ahora = calcularMetas(profile, ctx, lunes);
+  const antes = calcularMetas(profile, ctx, addDays(lunes, -7));
+  if (!ahora || !antes) return null;
+  const diff = ahora.meta - antes.meta;
+  if (Math.abs(diff) < 20) return null;
+  return { lunes, antes: antes.meta, ahora: ahora.meta, diff, motivos: motivosCambioMeta(antes, ahora) };
 }
 
 /** Gasto estimado de un día concreto (base + ejercicio de ese día + ajuste adaptativo). */

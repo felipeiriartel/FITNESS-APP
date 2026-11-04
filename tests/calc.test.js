@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  analisisSemana, bmr, calcularMetas, construirContexto, estadoDia, kcalEjercicio, racha, resumenSemana, tdeeAdaptativo,
+  analisisSemana, bmr, calcularMetas, calcularMetasSemana, cambioMetaSemanal, construirContexto, ejercicioPromedioDiario,
+  estadoDia, kcalEjercicio, racha, resumenSemana, tdeeAdaptativo,
 } from '../src/lib/calc.js';
 import { addDays, ageOn, startOfWeek, diffDays } from '../src/lib/dates.js';
 
@@ -150,4 +151,71 @@ test('análisis semanal: déficit, baja esperada y veredicto', () => {
   assert.ok(['segun-lo-esperado', 'mas-de-lo-esperado', 'menos-de-lo-esperado'].includes(a.veredicto));
   const pocos = analisisSemana(lunesAnterior, ctx, metas, hoy);
   assert.equal(pocos.veredicto, 'pocos-registros');
+});
+
+test('ejercicio: promedio entre lo declarado y lo registrado, sin descartar nunca lo declarado', () => {
+  const inicio = '2026-10-13';
+  const hoy = addDays(inicio, 40); // más de 28 días de historial
+  const poco = new Map();
+  for (const d of [0, 7, 14, 21, 28, 35]) poco.set(addDays(inicio, d), { kcal: 420, count: 1 });
+  const registrado = (6 * 420 * 0.75) / 28; // las últimas 28 jornadas
+  const habitual = (7 * 5 * 82 * 0.75) / 7; // 7 h/semana declaradas
+  const e = ejercicioPromedioDiario(poco, hoy, inicio, 7, 82);
+  assert.ok(e > registrado + 1 && e < habitual - 1, `${e} debería estar entre ${registrado} y ${habitual}`);
+  assert.ok(Math.abs(e - (registrado + habitual) / 2) < 25, 'cerca de la mitad');
+  // si registra más de lo que declaró, manda lo registrado
+  const mucho = new Map();
+  for (let d = 0; d < 40; d++) mucho.set(addDays(inicio, d), { kcal: 500, count: 1 });
+  const alto = ejercicioPromedioDiario(mucho, hoy, inicio, 1, 82);
+  assert.ok(alto >= (500 * 0.75) - 1);
+});
+
+test('meta semanal: no cambia durante la semana y se actualiza el lunes', () => {
+  const lunes = '2026-11-02';
+  const weights = [
+    { log_date: '2026-10-28', weight_kg: 82.4 },
+    { log_date: '2026-10-31', weight_kg: 82.3 },
+    { log_date: '2026-11-04', weight_kg: 81.7 },
+    { log_date: '2026-11-09', weight_kg: 80.0 },
+  ];
+  const exercises = [{ log_date: '2026-10-28', kcal_est: 400 }, { log_date: '2026-11-03', kcal_est: 900 }];
+  const ctx = construirContexto({ weights, meals: [], exercises, water: [] });
+  const dias = Array.from({ length: 7 }, (_, i) => addDays(lunes, i));
+  const metas = dias.map((d) => calcularMetasSemana(perfil, ctx, d).meta);
+  assert.equal(new Set(metas).size, 1, `toda la semana igual: ${metas}`);
+  const siguiente = calcularMetasSemana(perfil, ctx, '2026-11-09');
+  assert.notEqual(siguiente.peso, calcularMetasSemana(perfil, ctx, lunes).peso);
+});
+
+test('un día cerrado conserva su estado aunque la meta cambie la semana siguiente', () => {
+  const ctx = construirContexto({
+    weights: [{ log_date: '2026-10-26', weight_kg: 82 }, { log_date: '2026-11-04', weight_kg: 78 }],
+    meals: [{ log_date: '2026-11-01', kcal: 1800, protein_g: 0, carbs_g: 0, fat_g: 0 }],
+    exercises: [], water: [],
+  });
+  const perfilActivo = { ...perfil, usual_exercise_hours_week: 7 };
+  const metaDomingo = calcularMetasSemana(perfilActivo, ctx, '2026-11-01').meta;
+  const metaSemanaNueva = calcularMetasSemana(perfilActivo, ctx, '2026-11-04').meta;
+  assert.notEqual(metaDomingo, metaSemanaNueva);
+  // el domingo 1 pertenece a la semana del lunes 26: su meta es la de esa semana, no la de hoy
+  assert.equal(metaDomingo, calcularMetasSemana(perfilActivo, ctx, '2026-10-26').meta);
+  // comer justo el mayor de los dos valores: con la meta menor sería "leve", con la mayor es "ok"
+  const kcal = Math.max(metaDomingo, metaSemanaNueva);
+  assert.notEqual(estadoDia(kcal, metaSemanaNueva), estadoDia(kcal, metaDomingo));
+});
+
+test('aviso de cambio de meta semanal', () => {
+  const perfilActivo = { ...perfil, usual_exercise_hours_week: 7 };
+  const weights = [{ log_date: '2026-10-13', weight_kg: 85 }, { log_date: '2026-10-31', weight_kg: 80 }, { log_date: '2026-11-04', weight_kg: 79 }];
+  const ctx = construirContexto({ weights, meals: [], exercises: [], water: [] });
+  const aviso = cambioMetaSemanal(perfilActivo, ctx, '2026-11-04');
+  assert.ok(aviso, 'debe avisar');
+  assert.equal(aviso.lunes, '2026-11-02');
+  assert.equal(aviso.ahora - aviso.antes, aviso.diff);
+  assert.ok(aviso.motivos.length > 0);
+  // en modo manual no hay aviso
+  assert.equal(cambioMetaSemanal({ ...perfilActivo, target_mode: 'manual', manual_target_kcal: 2000 }, ctx, '2026-11-04'), null);
+  // cuenta nueva (primer registro esta misma semana): no hay semana anterior con que comparar
+  const nueva = construirContexto({ weights: [{ log_date: '2026-11-03', weight_kg: 80 }], meals: [], exercises: [], water: [] });
+  assert.equal(cambioMetaSemanal(perfilActivo, nueva, '2026-11-04'), null);
 });

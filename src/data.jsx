@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchAll, supabase } from './lib/supabase.js';
-import { calcularMetas, construirContexto } from './lib/calc.js';
-import { todayISO } from './lib/dates.js';
+import { calcularMetasSemana, cambioMetaSemanal, construirContexto, pesoTendencia } from './lib/calc.js';
+import { startOfWeek, todayISO } from './lib/dates.js';
 
 const Ctx = createContext(null);
 export const useData = () => useContext(Ctx);
@@ -40,8 +40,21 @@ export function DataProvider({ userId, children }) {
   const value = useMemo(() => {
     const ctx = construirContexto(raw);
     const hoy = todayISO();
-    const metas = raw.profile && ctx.weights.length ? calcularMetas(raw.profile, ctx, hoy) : null;
-    return { ...raw, ctx, metas, userId, loading, error, reload };
+    const tieneDatos = raw.profile && ctx.weights.length;
+    // La meta se fija una vez por semana (con los datos hasta el lunes). Cada día usa la meta de su semana.
+    const porSemana = new Map();
+    const metasSemana = (iso) => {
+      if (!tieneDatos) return null;
+      const lunes = startOfWeek(iso > hoy ? hoy : iso);
+      if (!porSemana.has(lunes)) porSemana.set(lunes, calcularMetasSemana(raw.profile, ctx, lunes));
+      return porSemana.get(lunes);
+    };
+    const semanal = metasSemana(hoy);
+    // El peso "actual" (tendencia de 7 días hasta hoy) sí se actualiza a diario; la meta no.
+    const metas = semanal ? { ...semanal, peso: pesoTendencia(ctx.weights, hoy) ?? semanal.peso } : null;
+    const metasDe = (iso) => metasSemana(iso) ?? metas;
+    const avisoMeta = tieneDatos ? cambioMetaSemanal(raw.profile, ctx, hoy) : null;
+    return { ...raw, ctx, metas, metasDe, avisoMeta, userId, loading, error, reload };
   }, [raw, userId, loading, error, reload]);
 
   // Guarda las metas vigentes en el perfil para que los recordatorios usen las mismas cifras que la app.

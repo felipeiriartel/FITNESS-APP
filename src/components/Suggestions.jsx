@@ -8,7 +8,8 @@ import { ErrorBox, Icon, Modal, Spinner } from './ui.jsx';
 
 /** "¿Qué puedo comer?": la IA propone 3 comidas que calzan con lo que queda del día. */
 export default function Suggestions({ fecha, onClose, abrir }) {
-  const { ctx, metas } = useData();
+  const { ctx, metasDe } = useData();
+  const metas = metasDe(fecha);
   const consumo = ctx.intakeByDate.get(fecha) ?? { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
   const restante = {
     kcal: Math.max(0, metas.meta - consumo.kcal),

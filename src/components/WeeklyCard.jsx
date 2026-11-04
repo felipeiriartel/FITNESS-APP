@@ -26,12 +26,12 @@ const VEREDICTOS = {
  * semana: 'pasada' (la última completa) o 'actual' (en curso).
  */
 export default function WeeklyCard({ semana = 'pasada', compacto = false, onVerMas }) {
-  const { ctx, metas } = useData();
+  const { ctx, metas, metasDe } = useData();
   const hoy = todayISO();
   const lunes = semana === 'actual' ? startOfWeek(hoy) : addDays(startOfWeek(hoy), -7);
   // La semana en curso se cuenta solo hasta ayer: el día de hoy aún no termina.
   const corte = semana === 'actual' ? addDays(hoy, -1) : hoy;
-  const a = analisisSemana(lunes, ctx, metas, corte);
+  const a = analisisSemana(lunes, ctx, metasDe(lunes), corte);
   const v = VEREDICTOS[a.veredicto] ?? VEREDICTOS['pocos-registros'];
   const deficit = a.deficit >= 0;
 

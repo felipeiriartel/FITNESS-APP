@@ -24,7 +24,7 @@ const leerSeccion = () => {
 };
 
 export default function Progress({ abrir, irAAjustes }) {
-  const { metas, ctx, weights, profile, reload } = useData();
+  const { metas, metasDe, ctx, weights, profile, reload } = useData();
   const [rango, setRango] = useState(90);
   const [verTodo, setVerTodo] = useState(false);
   const [seccion, setSeccionState] = useState(leerSeccion);
@@ -47,7 +47,7 @@ export default function Progress({ abrir, irAAjustes }) {
   const cinturas = visibles.filter((w) => w.waist_cm != null).map((w) => ({ date: w.log_date, value: Number(w.waist_cm) }));
 
   const lunes = startOfWeek(hoy);
-  const semanas = Array.from({ length: 8 }, (_, i) => resumenSemana(addDays(lunes, -7 * i), ctx, metas, hoy))
+  const semanas = Array.from({ length: 8 }, (_, i) => resumenSemana(addDays(lunes, -7 * i), ctx, metasDe(addDays(lunes, -7 * i)), hoy))
     .filter((s) => ctx.inicioISO && s.domingo >= ctx.inicioISO);
 
   const primero = ctx.weights[0];

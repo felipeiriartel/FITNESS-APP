@@ -7,7 +7,7 @@ import { useData } from '../data.jsx';
 import { Icon } from '../components/ui.jsx';
 
 export default function CalendarPage({ abrirDia }) {
-  const { ctx, metas } = useData();
+  const { ctx, metas, metasDe } = useData();
   const hoy = todayISO();
   const [mes, setMes] = useState(() => {
     const d = fromISO(hoy);
@@ -28,7 +28,7 @@ export default function CalendarPage({ abrirDia }) {
   for (const iso of celdas) {
     if (!iso || iso > hoy) continue;
     const kcal = ctx.intakeByDate.get(iso)?.kcal ?? 0;
-    conteo[estadoDia(kcal, metas.meta)]++;
+    conteo[estadoDia(kcal, metasDe(iso).meta)]++;
     sesiones += ctx.exerciseByDate.get(iso)?.count ?? 0;
     if (kcal) {
       kcalTotal += kcal;
@@ -67,7 +67,7 @@ export default function CalendarPage({ abrirDia }) {
             if (!iso) return <div key={`v${i}`} className="cal-day vacio" />;
             const futuro = iso > hoy;
             const kcal = ctx.intakeByDate.get(iso)?.kcal ?? 0;
-            const est = futuro ? 'sin' : estadoDia(kcal, metas.meta);
+            const est = futuro ? 'sin' : estadoDia(kcal, metasDe(iso).meta);
             const ej = ctx.exerciseByDate.get(iso);
             return (
               <button key={iso} className={`cal-day ${est}${iso === hoy ? ' hoy' : ''}${futuro ? ' futuro' : ''}`}
