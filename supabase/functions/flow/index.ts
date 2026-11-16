@@ -1,13 +1,14 @@
 // Comidia · Pago mensual con Webpay a través de Flow (flow.cl), sin Cargo Automático.
-// Cada pago aprobado suma 1 mes de acceso (ver migración 007, función registrar_pago).
+// Cada pago aprobado suma 1, 3 o 6 meses de acceso (migraciones 007 y 008, función registrar_pago).
 //
 // Rutas (desplegar con verify_jwt = false; la sesión se valida aquí mismo):
-//   POST /flow               { accion: "iniciar" | "sincronizar" | "cancelar" }  (requiere sesión)
+//   POST /flow               { accion: "iniciar", meses: 1|3|6 } | { accion: "sincronizar" | "cancelar" }  (requiere sesión)
 //   POST /flow/confirmacion  Flow avisa aquí (servidor a servidor) cuando el pago cambia de estado.
 //   POST /flow/retorno       El navegador vuelve aquí después de pagar; se redirige a la app.
 //
 // Secretos: FLOW_API_KEY, FLOW_SECRET_KEY y, opcionales, FLOW_API_URL (por defecto sandbox),
-// APP_URL (por defecto https://comidia.netlify.app), FLOW_MONTO (4990).
+// APP_URL (por defecto https://comidia.netlify.app).
+// Planes (precio fijado aquí, nunca por la app): 1 mes $4.990, 3 meses $12.990, 6 meses $24.990.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -17,7 +18,7 @@ const FLOW_API = (Deno.env.get("FLOW_API_URL") ?? "https://sandbox.flow.cl/api")
 const FLOW_KEY = Deno.env.get("FLOW_API_KEY") ?? "";
 const FLOW_SECRET = Deno.env.get("FLOW_SECRET_KEY") ?? "";
 const APP_URL = (Deno.env.get("APP_URL") ?? "https://comidia.netlify.app").replace(/\/$/, "");
-const MONTO = Number(Deno.env.get("FLOW_MONTO") ?? "4990");
+const PLANES: Record<number, number> = { 1: 4990, 3: 12990, 6: 24990 };
 const BASE_FUNCION = `${SUPABASE_URL}/functions/v1/flow`;
 
 const db = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
@@ -103,7 +104,7 @@ async function acciones(req: Request) {
   const usuario = await usuarioDeSesion(req);
   if (!usuario) return json({ error: "Inicie sesión de nuevo." }, 401);
   if (!FLOW_KEY || !FLOW_SECRET) return json({ error: "Los pagos todavía no están configurados. Intente más tarde." }, 503);
-  const { accion } = await req.json().catch(() => ({}));
+  const { accion, meses: mesesPedidos } = await req.json().catch(() => ({}));
   const { data: sus } = await db.from("suscripciones").select("*").eq("user_id", usuario.id).maybeSingle();
   if (!sus) return json({ error: "No encontramos su cuenta. Cierre sesión y vuelva a entrar." }, 404);
 
@@ -130,13 +131,17 @@ async function acciones(req: Request) {
     if (sus.gratis) return json({ error: "Su cuenta ya es gratis." }, 400);
     if (!usuario.email) return json({ error: "Su cuenta no tiene correo registrado." }, 400);
     // Orden única: id de la persona + marca de tiempo (máximo 45 caracteres en Flow).
+    const meses = Number(mesesPedidos ?? 1);
+    const monto = PLANES[meses];
+    if (!monto) return json({ error: "Plan no válido." }, 400);
     const orden = `${usuario.id}.${Date.now().toString(36)}`;
-    await db.from("pagos").insert({ commerce_order: orden, user_id: usuario.id, monto: MONTO });
+    const { error: eIns } = await db.from("pagos").insert({ commerce_order: orden, user_id: usuario.id, monto, meses });
+    if (eIns) throw new Error(`pagos insert: ${eIns.message}`);
     const p = await flow("POST", "payment/create", {
       commerceOrder: orden,
-      subject: "Comidia · 1 mes",
+      subject: meses === 1 ? "Comidia · 1 mes" : `Comidia · ${meses} meses`,
       currency: "CLP",
-      amount: MONTO,
+      amount: monto,
       email: usuario.email,
       paymentMethod: 9, // todos los medios activos en la cuenta (Webpay)
       urlConfirmation: `${BASE_FUNCION}/confirmacion`,

@@ -7,6 +7,12 @@ const Ctx = createContext(null);
 export const useSocial = () => useContext(Ctx);
 
 export const PRECIO = 4990;
+/** Planes de pago único. El precio real lo fija el servidor (función flow); esto es solo para mostrar. */
+export const PLANES = [
+  { meses: 1, precio: 4990 },
+  { meses: 3, precio: 12990 },
+  { meses: 6, precio: 24990 },
+];
 export const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https://comidia.netlify.app';
 const SYNC_MS = 6 * 3600_000; // se revisa el estado en Flow cada 6 horas como máximo
 
@@ -74,9 +80,9 @@ export function SocialProvider({ children }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-/** Abre el pago de 1 mes en Flow (Webpay). */
-export async function irAPagar() {
-  const { data, error } = await supabase.functions.invoke('flow', { body: { accion: 'iniciar' } });
+/** Abre el pago del plan elegido (1, 3 o 6 meses) en Flow (Webpay). */
+export async function irAPagar(meses = 1) {
+  const { data, error } = await supabase.functions.invoke('flow', { body: { accion: 'iniciar', meses } });
   if (error) throw new Error(await mensajeError(error));
   if (!data?.url) throw new Error('No se pudo abrir el pago. Intente de nuevo.');
   window.location.assign(data.url);
