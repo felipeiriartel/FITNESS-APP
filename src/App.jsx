@@ -108,10 +108,13 @@ function Shell({ email }) {
     u.searchParams.delete('suscripcion');
     window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash);
     if (r === 'ok') {
-      toast('¡Listo! Su suscripción quedó activa.');
+      toast('¡Listo! Su pago quedó registrado.');
+      sincronizar();
+    } else if (r === 'pendiente') {
+      toast('Su pago está en proceso. Se activará apenas Flow lo confirme.');
       sincronizar();
     } else if (r === 'cancelado') {
-      toast('No se registró la tarjeta. Puede intentarlo de nuevo en Ajustes.', 'error');
+      toast('El pago no se completó. Puede intentarlo de nuevo.', 'error');
     } else {
       toast('Hubo un problema con el pago. Intente de nuevo en Ajustes.', 'error');
     }

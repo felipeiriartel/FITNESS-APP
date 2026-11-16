@@ -74,7 +74,7 @@ export function SocialProvider({ children }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-/** Abre el registro de tarjeta en Flow. */
+/** Abre el pago de 1 mes en Flow (Webpay). */
 export async function irAPagar() {
   const { data, error } = await supabase.functions.invoke('flow', { body: { accion: 'iniciar' } });
   if (error) throw new Error(await mensajeError(error));

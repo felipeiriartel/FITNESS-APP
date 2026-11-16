@@ -1,12 +1,13 @@
-// Comidia · Suscripción mensual con Flow (flow.cl).
+// Comidia · Pago mensual con Webpay a través de Flow (flow.cl), sin Cargo Automático.
+// Cada pago aprobado suma 1 mes de acceso (ver migración 007, función registrar_pago).
 //
 // Rutas (desplegar con verify_jwt = false; la sesión se valida aquí mismo):
-//   POST /flow            { accion: "iniciar" | "sincronizar" | "cancelar" }  (requiere sesión)
-//   POST /flow/retorno    Flow vuelve aquí después de que la persona registra su tarjeta.
-//   POST /flow/aviso      Flow avisa aquí cada cobro del plan (urlCallback del plan).
+//   POST /flow               { accion: "iniciar" | "sincronizar" | "cancelar" }  (requiere sesión)
+//   POST /flow/confirmacion  Flow avisa aquí (servidor a servidor) cuando el pago cambia de estado.
+//   POST /flow/retorno       El navegador vuelve aquí después de pagar; se redirige a la app.
 //
 // Secretos: FLOW_API_KEY, FLOW_SECRET_KEY y, opcionales, FLOW_API_URL (por defecto sandbox),
-// APP_URL (por defecto https://comidia.netlify.app), FLOW_PLAN_ID (comidia-mensual), FLOW_MONTO (4990).
+// APP_URL (por defecto https://comidia.netlify.app), FLOW_MONTO (4990).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -16,7 +17,6 @@ const FLOW_API = (Deno.env.get("FLOW_API_URL") ?? "https://sandbox.flow.cl/api")
 const FLOW_KEY = Deno.env.get("FLOW_API_KEY") ?? "";
 const FLOW_SECRET = Deno.env.get("FLOW_SECRET_KEY") ?? "";
 const APP_URL = (Deno.env.get("APP_URL") ?? "https://comidia.netlify.app").replace(/\/$/, "");
-const PLAN_ID = Deno.env.get("FLOW_PLAN_ID") ?? "comidia-mensual";
 const MONTO = Number(Deno.env.get("FLOW_MONTO") ?? "4990");
 const BASE_FUNCION = `${SUPABASE_URL}/functions/v1/flow`;
 
@@ -54,44 +54,39 @@ async function flow(metodo: "GET" | "POST", servicio: string, datos: Record<stri
   return res;
 }
 
-/** Crea el plan mensual en Flow la primera vez. */
-async function asegurarPlan() {
-  try {
-    await flow("GET", "plans/get", { planId: PLAN_ID });
-  } catch {
-    await flow("POST", "plans/create", {
-      planId: PLAN_ID, name: "Comidia mensual", currency: "CLP", amount: MONTO,
-      interval: 3, interval_count: 1, trial_period_days: 0, days_until_due: 3,
-      charges_retries_number: 3, urlCallback: `${BASE_FUNCION}/aviso`,
-    });
+// Estados de pago en Flow: 1 pendiente, 2 pagada, 3 rechazada, 4 anulada.
+const ESTADOS: Record<number, string> = { 1: "pendiente", 2: "pagado", 3: "rechazado", 4: "anulado" };
+
+/** Lee el pago en Flow y, si está pagado por el monto correcto, registra el mes. Devuelve el estado. */
+async function procesarPago(datos: Record<string, unknown>) {
+  const orden = String(datos.commerceOrder ?? "");
+  const status = Number(datos.status);
+  const { data: pago } = await db.from("pagos").select("*").eq("commerce_order", orden).maybeSingle();
+  if (!pago) {
+    console.warn("pago desconocido:", orden);
+    return "error";
   }
+  if (status === 2) {
+    if (Number(datos.amount) !== pago.monto || String(datos.currency ?? "CLP") !== "CLP") {
+      console.error("monto no coincide:", orden, datos.amount, datos.currency);
+      return "error";
+    }
+    const { error } = await db.rpc("registrar_pago", { p_order: orden, p_flow_order: Number(datos.flowOrder) || null });
+    if (error) throw new Error(`registrar_pago: ${error.message}`);
+    await db.from("suscripciones").update({ sincronizado_at: new Date().toISOString() }).eq("user_id", pago.user_id);
+    return "pagado";
+  }
+  const estado = ESTADOS[status] ?? "pendiente";
+  if (pago.estado !== "pagado" && estado !== "pendiente") {
+    await db.from("pagos").update({ estado, flow_order: Number(datos.flowOrder) || null }).eq("commerce_order", orden);
+  }
+  return estado;
 }
 
-/** Fecha de Flow ("2026-11-30 00:00:00") a ISO, en hora de Chile. */
-function fechaFlow(v: unknown): string | null {
-  if (typeof v !== "string" || !v.trim()) return null;
-  const d = new Date(v.trim().replace(" ", "T") + (/[zZ]|[+-]\d\d:?\d\d$/.test(v) ? "" : "-03:00"));
-  return isNaN(d.getTime()) ? null : d.toISOString();
-}
-
-/** Lee la suscripción en Flow y guarda el estado en la base de datos. */
-async function sincronizar(userId: string, subscriptionId: string) {
-  const s = await flow("GET", "subscription/get", { subscriptionId });
-  const status = Number(s.status); // 0 sin iniciar, 1 activa, 2 en prueba, 4 cancelada
-  const morosa = Number(s.morose) === 1; // 1 = importe vencido sin pagar
-  const fin = fechaFlow(s.period_end) ?? fechaFlow(s.next_invoice_date);
-  let estado = "activa";
-  if (status === 4 || Number(s.cancel_at_period_end) === 1) estado = "cancelada";
-  else if (morosa) estado = "morosa";
-  // Al cancelar se mantiene el acceso hasta el fin del mes ya pagado: la fecha nunca se acorta.
-  let hasta = fin;
-  if (estado === "cancelada") {
-    const { data: actual } = await db.from("suscripciones").select("pagado_hasta").eq("user_id", userId).maybeSingle();
-    const previo = actual?.pagado_hasta ? new Date(actual.pagado_hasta).getTime() : 0;
-    if (!hasta || previo > new Date(hasta).getTime()) hasta = actual?.pagado_hasta ?? null;
-  }
-  await db.from("suscripciones").update({ estado, pagado_hasta: hasta, sincronizado_at: new Date().toISOString() }).eq("user_id", userId);
-  return { estado, pagado_hasta: hasta };
+async function tokenDe(req: Request) {
+  let token = new URL(req.url).searchParams.get("token") ?? "";
+  if (!token && req.method === "POST") token = String((await req.formData().catch(() => null))?.get("token") ?? "");
+  return token;
 }
 
 async function usuarioDeSesion(req: Request) {
@@ -113,85 +108,81 @@ async function acciones(req: Request) {
   if (!sus) return json({ error: "No encontramos su cuenta. Cierre sesión y vuelva a entrar." }, 404);
 
   if (accion === "sincronizar") {
-    if (!sus.flow_subscription_id) return json({ ok: true });
-    return json(await sincronizar(usuario.id, sus.flow_subscription_id));
+    // Revisa en Flow los pagos pendientes de los últimos 2 días (por si el aviso no llegó).
+    const desde = new Date(Date.now() - 2 * 86400_000).toISOString();
+    const { data: pendientes } = await db.from("pagos").select("commerce_order")
+      .eq("user_id", usuario.id).eq("estado", "pendiente").gte("created_at", desde);
+    for (const p of pendientes ?? []) {
+      try {
+        await procesarPago(await flow("GET", "payment/getStatusByCommerceId", { commerceId: p.commerce_order }));
+      } catch (e) {
+        console.warn("sincronizar:", p.commerce_order, String(e));
+      }
+    }
+    return json({ ok: true });
   }
 
   if (accion === "cancelar") {
-    if (!sus.flow_subscription_id) return json({ error: "No tiene una suscripción activa." }, 400);
-    await flow("POST", "subscription/cancel", { subscriptionId: sus.flow_subscription_id, at_period_end: 1 });
-    return json(await sincronizar(usuario.id, sus.flow_subscription_id));
+    return json({ ok: true, mensaje: "No hay cobros automáticos: su acceso dura hasta la fecha pagada." });
   }
 
   if (accion === "iniciar") {
     if (sus.gratis) return json({ error: "Su cuenta ya es gratis." }, 400);
-    if (sus.flow_subscription_id && ["activa", "morosa"].includes(sus.estado)) {
-      return json({ error: "Ya tiene una suscripción. Si un cobro falló, Flow lo reintentará con su tarjeta." }, 400);
-    }
-    let customerId = sus.flow_customer_id as string | null;
-    if (!customerId) {
-      const { data: perfil } = await db.from("profiles").select("display_name").eq("user_id", usuario.id).maybeSingle();
-      const c = await flow("POST", "customer/create", {
-        name: perfil?.display_name?.trim() || usuario.email, email: usuario.email, externalId: usuario.id,
-      });
-      customerId = String(c.customerId);
-      await db.from("suscripciones").update({ flow_customer_id: customerId }).eq("user_id", usuario.id);
-    }
-    const reg = await flow("POST", "customer/register", { customerId, url_return: `${BASE_FUNCION}/retorno` });
-    return json({ url: `${reg.url}?token=${reg.token}` });
+    if (!usuario.email) return json({ error: "Su cuenta no tiene correo registrado." }, 400);
+    // Orden única: id de la persona + marca de tiempo (máximo 45 caracteres en Flow).
+    const orden = `${usuario.id}.${Date.now().toString(36)}`;
+    await db.from("pagos").insert({ commerce_order: orden, user_id: usuario.id, monto: MONTO });
+    const p = await flow("POST", "payment/create", {
+      commerceOrder: orden,
+      subject: "Comidia · 1 mes",
+      currency: "CLP",
+      amount: MONTO,
+      email: usuario.email,
+      paymentMethod: 9, // todos los medios activos en la cuenta (Webpay)
+      urlConfirmation: `${BASE_FUNCION}/confirmacion`,
+      urlReturn: `${BASE_FUNCION}/retorno`,
+    });
+    await db.from("pagos").update({ token: String(p.token), flow_order: Number(p.flowOrder) || null }).eq("commerce_order", orden);
+    return json({ url: `${p.url}?token=${p.token}` });
   }
 
   return json({ error: "Acción no válida." }, 400);
 }
 
-/** Flow envía por POST el token del registro de tarjeta; si quedó registrada, se crea la suscripción. */
+/** Aviso de Flow (servidor a servidor). Debe responder 200 rápido. */
+async function confirmacion(req: Request) {
+  const token = await tokenDe(req);
+  if (!token) return new Response("sin token", { status: 400 });
+  try {
+    await procesarPago(await flow("GET", "payment/getStatus", { token }));
+  } catch (e) {
+    console.error("confirmacion:", String(e));
+    return new Response("error", { status: 500 }); // Flow reintentará
+  }
+  return new Response("ok");
+}
+
+/** El navegador vuelve desde Flow. */
 async function retorno(req: Request) {
-  let token = new URL(req.url).searchParams.get("token") ?? "";
-  if (!token && req.method === "POST") token = String((await req.formData().catch(() => null))?.get("token") ?? "");
+  const token = await tokenDe(req);
   if (!token) return volverApp("error");
   try {
-    const reg = await flow("GET", "customer/getRegisterStatus", { token });
-    if (String(reg.status) !== "1") return volverApp("cancelado");
-    const { data: sus } = await db.from("suscripciones").select("*").eq("flow_customer_id", String(reg.customerId)).maybeSingle();
-    if (!sus) return volverApp("error");
-    if (!sus.flow_subscription_id || sus.estado === "cancelada") {
-      await asegurarPlan();
-      // Si todavía le quedan días de prueba, el primer cobro se hace cuando terminan.
-      const fin = new Date(sus.prueba_hasta);
-      const inicio = fin > new Date() ? new Date(fin.getTime() - 3 * 3600_000).toISOString().slice(0, 10) : undefined;
-      const s = await flow("POST", "subscription/create", {
-        planId: PLAN_ID, customerId: String(reg.customerId), ...(inicio ? { subscription_start: inicio } : {}),
-      });
-      await db.from("suscripciones").update({ flow_subscription_id: String(s.subscriptionId), estado: "activa" }).eq("user_id", sus.user_id);
-      await sincronizar(sus.user_id, String(s.subscriptionId));
-    }
-    return volverApp("ok");
+    const estado = await procesarPago(await flow("GET", "payment/getStatus", { token }));
+    if (estado === "pagado") return volverApp("ok");
+    if (estado === "rechazado" || estado === "anulado") return volverApp("cancelado");
+    return volverApp(estado === "pendiente" ? "pendiente" : "error");
   } catch (e) {
     console.error("retorno:", String(e));
     return volverApp("error");
   }
 }
 
-/** Aviso de cobro: no se depende del formato del aviso; se vuelven a leer las suscripciones desde Flow. */
-async function aviso() {
-  const { data } = await db.from("suscripciones").select("user_id, flow_subscription_id")
-    .not("flow_subscription_id", "is", null).limit(500);
-  for (const s of data ?? []) {
-    try {
-      await sincronizar(s.user_id, s.flow_subscription_id);
-    } catch (e) {
-      console.warn("aviso:", s.user_id, String(e));
-    }
-  }
-  return new Response("ok");
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const ruta = new URL(req.url).pathname.replace(/\/+$/, "");
   try {
+    if (ruta.endsWith("/confirmacion")) return await confirmacion(req);
     if (ruta.endsWith("/retorno")) return await retorno(req);
-    if (ruta.endsWith("/aviso")) return await aviso();
     if (req.method !== "POST") return json({ error: "Método no permitido." }, 405);
     return await acciones(req);
   } catch (e) {
